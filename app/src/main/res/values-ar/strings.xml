@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">لانشر البومة</string>
+
+    <!-- Editorial / Time Editions -->
+    <string name="edition_morning">طبعة الصباح</string>
+    <string name="edition_afternoon">طبعة الظهيرة</string>
+    <string name="edition_evening">طبعة المساء</string>
+    <string name="edition_night">طبعة بومة الليل</string>
+    <string name="editorial_section_widgets">الأدوات المصغرة والمختارات</string>
+    <string name="editorial_section_nests">المجلدات والأعشاش</string>
+    <string name="editorial_section_apps">التطبيقات المثبتة</string>
+    <string name="editorial_section_quick">انطلاق سريع</string>
+
+    <!-- Home Screen & Actions -->
+    <string name="search_apps_hint">ابحث عن تطبيق أو مجلد أو أداة…</string>
+    <string name="open_drawer_desc">فتح درج التطبيقات</string>
+    <string name="settings_desc">إعدادات لانشر البومة</string>
+    <string name="add_widget_desc">إضافة أداة مصغرة</string>
+    <string name="edit_home">تعديل</string>
+    <string name="done_editing">تم</string>
+    <string name="night_owl_mode">الرؤية الليلية</string>
+    <string name="focus_perch_mode">وضع التركيز</string>
+    <string name="clean_mode_on">العرض الصافي</string>
+    <string name="safety_shield_mode">درع السلامة</string>
+    <string name="safety_shield_active_msg">تم تفعيل درع السلامة — إخفاء العناصر الخاصة فوراً</string>
+    <string name="safety_shield_off_msg">تم إيقاف درع السلامة</string>
+    <string name="flashlight_label">الكشاف</string>
+    <string name="torch_unavailable">الكشاف غير متاح في هذا الجهاز</string>
+    <string name="battery_format">%1$d%%</string>
+    <string name="battery_charging_format">%1$d%% ⚡</string>
+    <string name="long_press_hint">اضغط مطولاً على الشاشة للإعدادات والقلم • اسحب للأعلى لكل التطبيقات</string>
+
+    <!-- Home Long-Press Control Bar -->
+    <string name="home_menu_title">أدوات الشاشة الرئيسية</string>
+    <string name="home_menu_edit">القلم والتعديل</string>
+    <string name="home_menu_settings">الإعدادات</string>
+    <string name="home_menu_widgets">الودجات وGIF</string>
+    <string name="home_menu_folder">مجلد جديد</string>
+    <string name="home_menu_gestures">الإيماءات (24)</string>
+    <string name="home_menu_add_page">إضافة طبقة</string>
+    <string name="home_menu_remove_page">حذف الطبقة</string>
+    <string name="page_indicator_format">الطبقة %1$d من %2$d</string>
+
+    <!-- Default Launcher Banner -->
+    <string name="set_default_launcher_title">تثبيت لانشر البومة كشاشة رئيسية</string>
+    <string name="set_default_launcher_subtitle">عيّن لانشر البومة كلانشر افتراضي لهاتفك ليحلّ محل الشاشة الرئيسية الحقيقية.</string>
+    <string name="set_default_launcher_btn">تعيين كافتراضي</string>
+    <string name="default_launcher_active">لانشر البومة مفعّل الآن كشاشتك الرئيسية الافتراضية</string>
+
+    <!-- Empty Home Hint -->
+    <string name="home_empty_title">طبقة هادئة في لانشر البومة</string>
+    <string name="home_empty_subtitle">اسحب للأعلى لكل التطبيقات وأنزلها هنا، اسحب يميناً ويساراً للتنقل بين الطبقات، أو اضغط مطولاً على الشاشة لظهور القلم والإعدادات.</string>
+    <string name="pin_popular_apps">فتح قائمة التطبيقات</string>
+    <string name="add_first_widget">إضافة أداة مصغرة</string>
+
+    <!-- App Drawer -->
+    <string name="tab_all_apps">كل التطبيقات</string>
+    <string name="tab_categories">التصنيفات</string>
+    <string name="tab_vault">الخزنة السرية</string>
+    <string name="no_apps_found">لا توجد تطبيقات مطابقة</string>
+    <string name="vault_empty_title">الخزنة السرية فارغة</string>
+    <string name="vault_empty_subtitle">اضغط مطولاً على أي تطبيق واختر «إخفاء في الخزنة» لإبعاده بهدوء.</string>
+    <string name="vault_locked_title">الخزنة السرية مقفلة</string>
+    <string name="vault_unlock_btn">فتح بقفل الجهاز</string>
+    <string name="vault_auth_reason">تحقق من هويتك لفتح خزنة البومة السرية</string>
+
+    <!-- Categories -->
+    <string name="cat_communication">التواصل والاجتماعي</string>
+    <string name="cat_productivity">الإنتاجية والأدوات</string>
+    <string name="cat_media">الوسائط والتصوير</string>
+    <string name="cat_games">الألعاب</string>
+    <string name="cat_utilities">النظام والخدمات</string>
+    <string name="cat_other">تطبيقات أخرى</string>
+
+    <!-- App Context Menu & Per-Item Sizing -->
+    <string name="action_open">فتح التطبيق</string>
+    <string name="action_pin_home">إنزال إلى الطبقة الحالية</string>
+    <string name="action_unpin_home">إزالة من الطبقة</string>
+    <string name="action_pin_dock">تثبيت في الشريط السفلي</string>
+    <string name="action_unpin_dock">إزالة من الشريط السفلي</string>
+    <string name="action_add_to_nest">إضافة إلى مجلد (عش)</string>
+    <string name="action_focus_allow">تطبيق أساسي في التركيز</string>
+    <string name="action_focus_remove">إزالة من قائمة التركيز</string>
+    <string name="action_hide_vault">إخفاء في الخزنة السرية</string>
+    <string name="action_unhide_vault">إرجاع من الخزنة</string>
+    <string name="action_app_info">معلومات التطبيق</string>
+    <string name="action_uninstall">إلغاء التثبيت</string>
+    <string name="action_customize_item">تعديل الحجم والشكل</string>
+    <string name="msg_dock_full">الشريط السفلي يتسع لـ 5 تطبيقات — أزل تطبيقاً أولاً</string>
+    <string name="msg_app_pinned">تم إنزال التطبيق للطبقة الحالية</string>
+    <string name="msg_app_unpinned">تمت الإزالة من الطبقة</string>
+
+    <string name="item_editor_title">تخصيص العنصر</string>
+    <string name="item_scale_label">الحجم: %1$.2fx</string>
+    <string name="item_shape_override">شكل العنصر</string>
+    <string name="shape_inherit">حسب الإعداد العام</string>
+    <string name="move_to_prev_page">نقل للطبقة السابقة</string>
+    <string name="move_to_next_page">نقل للطبقة التالية</string>
+    <string name="attach_gif_btn">إضافة صورة GIF متحركة</string>
+    <string name="clear_gif_btn">إزالة GIF</string>
+
+    <!-- Owl Nests (Folders) -->
+    <string name="create_nest">مجلد جديد</string>
+    <string name="nest_name_hint">اسم المجلد (مثلاً: العمل، القراءة)</string>
+    <string name="nest_create_btn">إنشاء المجلد</string>
+    <string name="nest_delete_btn">حذف المجلد</string>
+    <string name="nest_empty">لا توجد تطبيقات في هذا المجلد بعد</string>
+    <string name="choose_nest_title">اختر المجلد</string>
+    <string name="folder_style_label">حجم ونمط المجلد</string>
+    <string name="folder_size_1x1">1×1 مصغّر</string>
+    <string name="folder_size_2x1">2×1 عريض</string>
+    <string name="folder_size_2x2">2×2 مجلد كبير</string>
+    <string name="cancel">إلغاء</string>
+    <string name="save">حفظ</string>
+    <string name="close">إغلاق</string>
+
+    <!-- Widgets -->
+    <string name="widgets_sheet_title">التطبيقات المصغرة وبطاقات GIF</string>
+    <string name="widgets_tab_owl">البومة و GIF</string>
+    <string name="widgets_tab_system">ودجات النظام</string>
+    <string name="widget_size_compact">صغير</string>
+    <string name="widget_size_wide">عريض</string>
+    <string name="widget_size_tall">طويل</string>
+    <string name="widget_height_label">ارتفاع مخصص: %1$ddp</string>
+    <string name="widget_radius_label">تدوير الحواف: %1$ddp</string>
+    <string name="widget_remove">إزالة</string>
+    <string name="widget_bind_denied">لم يتم منح إذن ربط الأداة المصغرة</string>
+    <string name="widget_added">تمت إضافة الأداة المصغرة للطبقة الحالية</string>
+    <string name="no_system_widgets">لا توجد ودجات خارجية متاحة حالياً</string>
+
+    <!-- Owl Native Widgets -->
+    <string name="owl_widget_focus_title">مؤقت تركيز البومة</string>
+    <string name="owl_widget_focus_desc">جلسة تركيز 25 دقيقة مع إخفاء التطبيقات المشتتة</string>
+    <string name="owl_widget_note_title">المذكرة المقالية السريعة</string>
+    <string name="owl_widget_note_desc">ثبّت ملاحظتك أو عنوان يومك مباشرة على الشاشة الرئيسية</string>
+    <string name="owl_widget_system_title">لمحة الجهاز والكشاف</string>
+    <string name="owl_widget_system_desc">حالة البطارية والمساحة المتوفرة وزر الكشاف السريع</string>
+    <string name="owl_widget_wisdom_title">حكمة البومة اليومية</string>
+    <string name="owl_widget_wisdom_desc">اضغط للتبديل بين حكم هادئة وملهمة</string>
+    <string name="owl_widget_gif_title">إطار GIF متحرك حر</string>
+    <string name="owl_widget_gif_desc">ضع أي صورة GIF متحركة أو صورة حرة على الشاشة الرئيسية</string>
+    <string name="gif_tap_to_pick">اضغط لاختيار صورة GIF متحركة أو صورة</string>
+    <string name="note_placeholder">اضغط لكتابة مذكرتك أو عنوان يومك…</string>
+    <string name="focus_start">ابدأ التركيز</string>
+    <string name="focus_pause">إيقاف مؤقت</string>
+    <string name="focus_reset">إعادة ضبط</string>
+    <string name="focus_active_banner">وضع التركيز مفعّل — يعرض تطبيقاتك الأساسية فقط</string>
+    <string name="storage_free_format">%1$s متاح</string>
+
+    <!-- Owl Wisdom Quotes -->
+    <string name="wisdom_1">الهدوء هو المساحة التي يكتمل فيها وضوح الرؤية.</string>
+    <string name="wisdom_2">البومة تبصر في العتمة ما تغفل عنه العجلة في الضجيج.</string>
+    <string name="wisdom_3">رتّب أدواتك كي يبقى ذهنك متفرغاً لما يهم.</string>
+    <string name="wisdom_4">ساعة تركيز هادئة خير من يومٍ مبعثر.</string>
+    <string name="wisdom_5">تثبت البومة صابرة وسط الرعد والمطر؛ الهدوء أقوى من العاصفة.</string>
+
+    <!-- Settings Studio Tabs -->
+    <string name="settings_title">استوديو لانشر البومة</string>
+    <string name="settings_tab_layers">الطبقات والرئيسية</string>
+    <string name="settings_tab_wallpaper">العاصفة والخلفيات</string>
+    <string name="settings_tab_icons">الأيقونات والشكل</string>
+    <string name="settings_tab_gestures">الإيماءات (24)</string>
+
+    <string name="settings_section_system">اللانشر الافتراضي</string>
+    <string name="settings_section_layers">الطبقات الأفقية والانتقالات</string>
+    <string name="settings_section_wallpapers">الخلفيتان والتحكم بالحجم</string>
+    <string name="settings_section_storm">خلفية البومة المتحركة (الرعد والأمطار)</string>
+    <string name="settings_section_icons">شكل الأيقونات وحجمها والشبكة</string>
+    <string name="settings_section_features">ميزات البومة المميزة</string>
+
+    <string name="transition_label">حركة الانتقال بين الطبقات</string>
+    <string name="transition_slide">انزلاق سلس</string>
+    <string name="transition_depth">عمق ثلاثي</string>
+    <string name="transition_fade">تلاشي ناعم</string>
+    <string name="transition_tilt">إمالة سينمائية</string>
+
+    <string name="storm_mode_label">مؤثرات البومة المتحركة</string>
+    <string name="storm_off">ثابت وهادئ</string>
+    <string name="storm_drizzle">أمطار خفيفة</string>
+    <string name="storm_thunder">عاصفة البومة الصابرة (رعد وأمطار)</string>
+    <string name="storm_rain_density">كثافة المطر: %1$d%%</string>
+    <string name="storm_lightning_toggle">ومضات البرق والرعد</string>
+    <string name="storm_fog_toggle">ضباب وغيوم ليلية متحركة</string>
+
+    <string name="wallpaper_portrait_title">خلفية الوضع العامودي</string>
+    <string name="wallpaper_landscape_title">خلفية الوضع الأفقي</string>
+    <string name="wallpaper_pick">تعيين صورة</string>
+    <string name="wallpaper_reset">خلفية البومة الافتراضية</string>
+    <string name="wallpaper_custom_active">صورة مخصصة مفعّلة</string>
+    <string name="wallpaper_default_active">رسمة البومة الافتراضية</string>
+    <string name="scale_mode_label">نمط حجم الخلفية</string>
+    <string name="scale_crop">ملء وقص</string>
+    <string name="scale_fit">احتواء كامل</string>
+    <string name="scale_stretch">تمديد</string>
+    <string name="zoom_label">التكبير: %1$.2fx</string>
+    <string name="offset_x_label">الموضع الأفقي: %1$d%%</string>
+    <string name="offset_y_label">الموضع العامودي: %1$d%%</string>
+    <string name="dim_label">تعتيم الخلفية: %1$d%%</string>
+    <string name="preview_portrait">العامودي</string>
+    <string name="preview_landscape">الأفقي</string>
+
+    <string name="icon_shape_label">شكل إطار الأيقونات (يحافظ على صورة التطبيق الأصلية)</string>
+    <string name="shape_original">الأصلي</string>
+    <string name="shape_squircle">مربع مرن</string>
+    <string name="shape_circle">دائري</string>
+    <string name="shape_rounded">دائري الحواف</string>
+    <string name="shape_feather">ريشة البومة</string>
+    <string name="shape_shield">درع البومة</string>
+    <string name="icon_size_label">حجم الأيقونات العام: %1$ddp</string>
+    <string name="icon_frame_backdrop">إطار زجاجي خفيف</string>
+    <string name="show_app_labels">إظهار أسماء التطبيقات</string>
+    <string name="show_dock_toggle">إظهار الشريط السفلي</string>
+    <string name="portrait_columns_label">أعمدة الوضع العامودي: %1$d</string>
+    <string name="landscape_columns_label">أعمدة الوضع الأفقي: %1$d</string>
+
+    <string name="accent_theme_label">ألوان البومة</string>
+    <string name="accent_amber">كهرماني ذهبي</string>
+    <string name="accent_indigo">نيلي ليلي</string>
+    <string name="accent_sage">أخضر الغابة</string>
+    <string name="accent_dynamic">ألوان النظام</string>
+
+    <string name="editorial_title_label">عنوان الطبعة المقالية المخصص</string>
+    <string name="editorial_title_hint">اتركه فارغاً للتحديث التلقائي حسب الوقت</string>
+    <string name="vault_require_lock">حماية الخزنة السرية بقفل الجهاز</string>
+    <string name="glass_opacity_label">شفافية البطاقات الزجاجية: %1$d%%</string>
+    <string name="quick_toolbox_title">أدوات البومة السريعة</string>
+    <string name="open_device_settings">إعدادات الجهاز</string>
+    <string name="open_wifi_settings">إعدادات الشبكة</string>
+    <string name="open_display_settings">إعدادات الشاشة</string>
+
+    <!-- 24 Multi-Touch Gestures -->
+    <string name="gestures_intro">خصّص 24 إيماءة متعددة الأصابع واللمس والقرص والتدوير والحواف. اربط أي إيماءة لفتح تطبيق معين، تغيير الطبقات، أو تفعيل درع السلامة.</string>
+    <string name="gesture_pick_action_title">تعيين وظيفة الإيماءة</string>
+    <string name="gesture_pick_app_title">اختر التطبيق لفتحه بالإيماءة</string>
+
+    <string name="g_1f_swipe_up">سحب بإصبع واحد للأعلى</string>
+    <string name="g_1f_swipe_down">سحب بإصبع واحد للأسفل</string>
+    <string name="g_1f_double_tap">نقر مزدوج بإصبع واحد</string>
+    <string name="g_1f_triple_tap">نقر ثلاثي بإصبع واحد</string>
+    <string name="g_2f_swipe_up">سحب بإصبعين للأعلى</string>
+    <string name="g_2f_swipe_down">سحب بإصبعين للأسفل</string>
+    <string name="g_2f_swipe_left">سحب بإصبعين لليسار</string>
+    <string name="g_2f_swipe_right">سحب بإصبعين لليمين</string>
+    <string name="g_2f_tap">نقر بإصبعين</string>
+    <string name="g_2f_double_tap">نقر مزدوج بإصبعين</string>
+    <string name="g_2f_pinch_in">ضم إصبعين للداخل</string>
+    <string name="g_2f_spread_out">تبعيد إصبعين للخارج</string>
+    <string name="g_2f_rotate_cw">تدوير بإصبعين مع عقارب الساعة</string>
+    <string name="g_2f_rotate_ccw">تدوير بإصبعين عكس عقارب الساعة</string>
+    <string name="g_3f_swipe_up">سحب بثلاثة أصابع للأعلى</string>
+    <string name="g_3f_swipe_down">سحب بثلاثة أصابع للأسفل</string>
+    <string name="g_3f_swipe_left">سحب بثلاثة أصابع لليسار</string>
+    <string name="g_3f_swipe_right">سحب بثلاثة أصابع لليمين</string>
+    <string name="g_3f_tap">نقر بثلاثة أصابع</string>
+    <string name="g_4f_swipe_up">سحب بأربعة أصابع للأعلى</string>
+    <string name="g_4f_swipe_down">سحب بأربعة أصابع للأسفل</string>
+    <string name="g_4f_tap">نقر بأربعة أصابع</string>
+    <string name="g_edge_left_in">سحب من الحافة اليسرى</string>
+    <string name="g_edge_right_in">سحب من الحافة اليمنى</string>
+
+    <!-- Gesture Actions -->
+    <string name="ga_none">معطّل</string>
+    <string name="ga_open_drawer">فتح قائمة كل التطبيقات</string>
+    <string name="ga_open_quick_cmd">فتح البحث والأوامر السريعة</string>
+    <string name="ga_open_settings">فتح إعدادات اللانشر</string>
+    <string name="ga_toggle_edit">تفعيل/إلغاء القلم والتعديل</string>
+    <string name="ga_open_widgets">فتح قائمة الودجات</string>
+    <string name="ga_next_page">الانتقال للطبقة التالية</string>
+    <string name="ga_prev_page">الانتقال للطبقة السابقة</string>
+    <string name="ga_first_page">الانتقال للطبقة الأولى</string>
+    <string name="ga_last_page">الانتقال للطبقة الأخيرة</string>
+    <string name="ga_open_vault">فتح الخزنة السرية</string>
+    <string name="ga_toggle_night_owl">تبديل الرؤية الليلية</string>
+    <string name="ga_toggle_focus">تبديل وضع التركيز</string>
+    <string name="ga_toggle_clean">تبديل العرض الصافي</string>
+    <string name="ga_toggle_safety">تبديل درع السلامة (حماية فورية)</string>
+    <string name="ga_toggle_torch">تشغيل/إطفاء الكشاف</string>
+    <string name="ga_open_note">فتح المذكرة السريعة</string>
+    <string name="ga_expand_notifications">سحب شريط الإشعارات</string>
+    <string name="ga_open_device_settings">فتح إعدادات الهاتف</string>
+    <string name="ga_launch_app">فتح تطبيق محدد…</string>
+    <string name="ga_launch_app_named">فتح: %1$s</string>
+</resources>

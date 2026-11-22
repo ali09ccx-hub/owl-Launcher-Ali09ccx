@@ -1,11 +1,13 @@
-<div align="center">
+# Owl Launcher — لانشر البومة
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+لانشر أندرويد للشاشة الرئيسية يدعم التثبيت كلانشر افتراضي حقيقي، مع الحفاظ على صور وأيقونات التطبيقات الأصلية، ودعم خلفيتين منفصلتين للوضع العامودي والأفقي مع التحكم الكامل بالحجم والملاءمة، ونمط مقالي أنيق عند تدوير الهاتف أفقياً، ودعم التطبيقات المصغرة (Widgets).
 
-  <h1>Built with AI Studio</h2>
+## طريقة تصدير ملف APK من الهاتف عبر GitHub (دون كمبيوتر)
 
-  <p>The fastest path from prompt to production with Gemini.</p>
-
-  <a href="https://aistudio.google.com/apps">Start building</a>
-
-</div>
+1. ارفع المشروع إلى مستودعك على GitHub (ملف البناء جاهز تلقائياً في `.github/workflows/build-apk.yml`).
+2. افتح صفحة المستودع على GitHub من متصفح الهاتف أو تطبيق GitHub.
+3. ادخل إلى تبويب **Actions**.
+4. اختر **Build Owl Launcher APK** (سيبدأ تلقائياً عند الرفع، أو اضغط **Run workflow** لتشغيله يدوياً).
+5. بعد انتهاء البناء بالعلامة الخضراء:
+   - ستجد ملف **OwlLauncher-APK** في قسم **Artifacts** أسفل صفحة التشغيل، أو في قسم **Releases** إذا قمت بالتشغيل اليدوي.
+   - حمّل الملف وفك الضغط إن كان بصيغة ZIP لتحصل على `OwlLauncher.apk` وثبّته مباشرة على هاتفك.

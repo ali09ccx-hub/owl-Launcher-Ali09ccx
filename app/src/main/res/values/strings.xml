@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Owl Launcher</string>
+
+    <!-- Editorial / Time Editions -->
+    <string name="edition_morning">Morning Edition</string>
+    <string name="edition_afternoon">Afternoon Edition</string>
+    <string name="edition_evening">Evening Edition</string>
+    <string name="edition_night">Midnight Owl Edition</string>
+    <string name="editorial_section_widgets">Featured Widgets &amp; Dispatches</string>
+    <string name="editorial_section_nests">Curated Nests</string>
+    <string name="editorial_section_apps">Pinned Applications</string>
+    <string name="editorial_section_quick">Quick Launch</string>
+
+    <!-- Home Screen & Actions -->
+    <string name="search_apps_hint">Search apps, nests, or commands…</string>
+    <string name="open_drawer_desc">Open App Drawer</string>
+    <string name="settings_desc">Launcher Settings</string>
+    <string name="add_widget_desc">Add Widget</string>
+    <string name="edit_home">Edit</string>
+    <string name="done_editing">Done</string>
+    <string name="night_owl_mode">Night Owl</string>
+    <string name="focus_perch_mode">Focus Perch</string>
+    <string name="clean_mode_on">Clean View</string>
+    <string name="safety_shield_mode">Safety Shield</string>
+    <string name="safety_shield_active_msg">Safety Shield active — private items veiled</string>
+    <string name="safety_shield_off_msg">Safety Shield disabled</string>
+    <string name="flashlight_label">Torch</string>
+    <string name="torch_unavailable">Flashlight unavailable on this device</string>
+    <string name="battery_format">%1$d%%</string>
+    <string name="battery_charging_format">%1$d%% ⚡</string>
+    <string name="long_press_hint">Long-press home for Edit &amp; Settings • Swipe up for Apps</string>
+
+    <!-- Home Long-Press Control Bar -->
+    <string name="home_menu_title">Home Screen Controls</string>
+    <string name="home_menu_edit">Edit &amp; Move</string>
+    <string name="home_menu_settings">Settings</string>
+    <string name="home_menu_widgets">Widgets</string>
+    <string name="home_menu_folder">New Folder</string>
+    <string name="home_menu_gestures">Gestures</string>
+    <string name="home_menu_add_page">Add Layer</string>
+    <string name="home_menu_remove_page">Remove Layer</string>
+    <string name="page_indicator_format">Layer %1$d of %2$d</string>
+
+    <!-- Default Launcher Banner -->
+    <string name="set_default_launcher_title">Make Owl Your Home Screen</string>
+    <string name="set_default_launcher_subtitle">Set Owl Launcher as your default phone launcher to replace your system home screen.</string>
+    <string name="set_default_launcher_btn">Set as Default</string>
+    <string name="default_launcher_active">Owl Launcher is active as your default home screen</string>
+
+    <!-- Empty Home Hint -->
+    <string name="home_empty_title">Your Quiet Nocturnal Layer</string>
+    <string name="home_empty_subtitle">Swipe up for all apps &amp; drop them here, swipe left/right between layers, or long-press anywhere for Edit &amp; Settings.</string>
+    <string name="pin_popular_apps">Open App Drawer</string>
+    <string name="add_first_widget">Add Widget</string>
+
+    <!-- App Drawer -->
+    <string name="tab_all_apps">All Apps</string>
+    <string name="tab_categories">Categories</string>
+    <string name="tab_vault">Stealth Vault</string>
+    <string name="no_apps_found">No matching apps found</string>
+    <string name="vault_empty_title">Stealth Vault is Empty</string>
+    <string name="vault_empty_subtitle">Long-press any app and choose “Hide in Vault” to tuck it away quietly.</string>
+    <string name="vault_locked_title">Stealth Vault Locked</string>
+    <string name="vault_unlock_btn">Unlock with Device Lock</string>
+    <string name="vault_auth_reason">Verify your identity to open Owl Stealth Vault</string>
+
+    <!-- Categories -->
+    <string name="cat_communication">Communication &amp; Social</string>
+    <string name="cat_productivity">Productivity &amp; Tools</string>
+    <string name="cat_media">Media &amp; Photography</string>
+    <string name="cat_games">Games</string>
+    <string name="cat_utilities">Utilities &amp; System</string>
+    <string name="cat_other">Other Apps</string>
+
+    <!-- App Context Menu & Per-Item Sizing -->
+    <string name="action_open">Open App</string>
+    <string name="action_pin_home">Drop to Current Layer</string>
+    <string name="action_unpin_home">Remove from Layer</string>
+    <string name="action_pin_dock">Pin to Dock</string>
+    <string name="action_unpin_dock">Remove from Dock</string>
+    <string name="action_add_to_nest">Add to Folder (Nest)</string>
+    <string name="action_focus_allow">Allow in Focus Perch</string>
+    <string name="action_focus_remove">Remove from Focus Perch</string>
+    <string name="action_hide_vault">Hide in Stealth Vault</string>
+    <string name="action_unhide_vault">Restore from Vault</string>
+    <string name="action_app_info">App Info</string>
+    <string name="action_uninstall">Uninstall</string>
+    <string name="action_customize_item">Size &amp; Shape</string>
+    <string name="msg_dock_full">Dock holds up to 5 apps — unpin one first</string>
+    <string name="msg_app_pinned">Dropped onto current Home Layer</string>
+    <string name="msg_app_unpinned">Removed from Home Layer</string>
+
+    <string name="item_editor_title">Customize Item</string>
+    <string name="item_scale_label">Scale: %1$.2fx</string>
+    <string name="item_shape_override">Item Shape</string>
+    <string name="shape_inherit">Use Global</string>
+    <string name="move_to_prev_page">Move to Prev Layer</string>
+    <string name="move_to_next_page">Move to Next Layer</string>
+    <string name="attach_gif_btn">Set Animated GIF / Photo</string>
+    <string name="clear_gif_btn">Remove GIF</string>
+
+    <!-- Owl Nests (Folders) -->
+    <string name="create_nest">New Folder</string>
+    <string name="nest_name_hint">Folder name (e.g. Work, Reading)</string>
+    <string name="nest_create_btn">Create Folder</string>
+    <string name="nest_delete_btn">Delete Folder</string>
+    <string name="nest_empty">No apps inside this folder yet</string>
+    <string name="choose_nest_title">Choose a Folder</string>
+    <string name="folder_style_label">Folder Size &amp; Layout</string>
+    <string name="folder_size_1x1">1×1 Classic</string>
+    <string name="folder_size_2x1">2×1 Pill</string>
+    <string name="folder_size_2x2">2×2 Big Folder</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="close">Close</string>
+
+    <!-- Widgets -->
+    <string name="widgets_sheet_title">Widgets &amp; GIF Modules</string>
+    <string name="widgets_tab_owl">Owl &amp; GIFs</string>
+    <string name="widgets_tab_system">Device Widgets</string>
+    <string name="widget_size_compact">Compact</string>
+    <string name="widget_size_wide">Wide</string>
+    <string name="widget_size_tall">Tall</string>
+    <string name="widget_height_label">Custom Height: %1$ddp</string>
+    <string name="widget_radius_label">Corner Radius: %1$ddp</string>
+    <string name="widget_remove">Remove</string>
+    <string name="widget_bind_denied">Widget permission was not granted</string>
+    <string name="widget_added">Widget added to current Layer</string>
+    <string name="no_system_widgets">No external app widgets found on this device</string>
+
+    <!-- Owl Native Widgets -->
+    <string name="owl_widget_focus_title">Focus Perch Timer</string>
+    <string name="owl_widget_focus_desc">25-minute deep focus timer with distracting app filter</string>
+    <string name="owl_widget_note_title">Editorial Dispatch Note</string>
+    <string name="owl_widget_note_desc">Pin a personal memo or daily headline to your home screen</string>
+    <string name="owl_widget_system_title">System &amp; Storage Glance</string>
+    <string name="owl_widget_system_desc">Live battery, available storage, and flashlight toggle</string>
+    <string name="owl_widget_wisdom_title">Daily Owl Wisdom</string>
+    <string name="owl_widget_wisdom_desc">Tap to cycle curated nocturnal proverbs</string>
+    <string name="owl_widget_gif_title">Animated GIF Frame</string>
+    <string name="owl_widget_gif_desc">Display any animated GIF or photo freely on your home layer</string>
+    <string name="gif_tap_to_pick">Tap to pick an animated GIF or image</string>
+    <string name="note_placeholder">Tap to write your daily headline or note…</string>
+    <string name="focus_start">Start Focus</string>
+    <string name="focus_pause">Pause</string>
+    <string name="focus_reset">Reset</string>
+    <string name="focus_active_banner">Focus Perch active — showing essential apps only</string>
+    <string name="storage_free_format">%1$s free</string>
+
+    <!-- Owl Wisdom Quotes -->
+    <string name="wisdom_1">Silence is the canvas where sharp sight awakens.</string>
+    <string name="wisdom_2">See in the dark what haste overlooks in the glare.</string>
+    <string name="wisdom_3">Order your tools so your mind stays uncluttered.</string>
+    <string name="wisdom_4">One quiet hour of focus outweighs a noisy day.</string>
+    <string name="wisdom_5">Every storm passes; the patient owl sees clear through the rain.</string>
+
+    <!-- Settings Studio Tabs -->
+    <string name="settings_title">Owl Launcher Studio</string>
+    <string name="settings_tab_layers">Home &amp; Layers</string>
+    <string name="settings_tab_wallpaper">Storm &amp; Walls</string>
+    <string name="settings_tab_icons">Icons &amp; Style</string>
+    <string name="settings_tab_gestures">24 Gestures</string>
+
+    <string name="settings_section_system">System Launcher</string>
+    <string name="settings_section_layers">Horizontal Layers &amp; Transitions</string>
+    <string name="settings_section_wallpapers">Dual Wallpapers &amp; Sizing</string>
+    <string name="settings_section_storm">Animated Owl Storm Engine</string>
+    <string name="settings_section_icons">Icon Shape, Size &amp; Grid</string>
+    <string name="settings_section_features">Owl Signature Features</string>
+
+    <string name="transition_label">Layer Transition Effect</string>
+    <string name="transition_slide">Smooth Slide</string>
+    <string name="transition_depth">Depth Parallax</string>
+    <string name="transition_fade">Soft Fade</string>
+    <string name="transition_tilt">3D Tilt</string>
+
+    <string name="storm_mode_label">Living Storm Overlay</string>
+    <string name="storm_off">Static Calm</string>
+    <string name="storm_drizzle">Gentle Rain</string>
+    <string name="storm_thunder">Steadfast Owl Storm (Thunder &amp; Rain)</string>
+    <string name="storm_rain_density">Rain Density: %1$d%%</string>
+    <string name="storm_lightning_toggle">Periodic Lightning Flashes</string>
+    <string name="storm_fog_toggle">Drifting Night Mist</string>
+
+    <string name="wallpaper_portrait_title">Portrait Wallpaper</string>
+    <string name="wallpaper_landscape_title">Landscape Wallpaper</string>
+    <string name="wallpaper_pick">Choose Photo</string>
+    <string name="wallpaper_reset">Default Owl Art</string>
+    <string name="wallpaper_custom_active">Custom photo active</string>
+    <string name="wallpaper_default_active">Built-in Owl artwork</string>
+    <string name="scale_mode_label">Sizing Mode</string>
+    <string name="scale_crop">Fill (Crop)</string>
+    <string name="scale_fit">Fit Whole</string>
+    <string name="scale_stretch">Stretch</string>
+    <string name="zoom_label">Zoom: %1$.2fx</string>
+    <string name="offset_x_label">Horizontal Position: %1$d%%</string>
+    <string name="offset_y_label">Vertical Position: %1$d%%</string>
+    <string name="dim_label">Wallpaper Dimming: %1$d%%</string>
+    <string name="preview_portrait">Portrait</string>
+    <string name="preview_landscape">Landscape</string>
+
+    <string name="icon_shape_label">Icon Frame Shape (Preserves Original Art)</string>
+    <string name="shape_original">Original</string>
+    <string name="shape_squircle">Squircle</string>
+    <string name="shape_circle">Circle</string>
+    <string name="shape_rounded">Rounded</string>
+    <string name="shape_feather">Feather</string>
+    <string name="shape_shield">Crest</string>
+    <string name="icon_size_label">Global Icon Size: %1$ddp</string>
+    <string name="icon_frame_backdrop">Subtle Frame Ring</string>
+    <string name="show_app_labels">Show App Labels</string>
+    <string name="show_dock_toggle">Show Bottom Dock</string>
+    <string name="portrait_columns_label">Portrait Grid Columns: %1$d</string>
+    <string name="landscape_columns_label">Landscape Grid Columns: %1$d</string>
+
+    <string name="accent_theme_label">Nocturnal Accent Palette</string>
+    <string name="accent_amber">Amber Gold</string>
+    <string name="accent_indigo">Twilight Indigo</string>
+    <string name="accent_sage">Forest Sage</string>
+    <string name="accent_dynamic">System Dynamic</string>
+
+    <string name="editorial_title_label">Custom Editorial Masthead</string>
+    <string name="editorial_title_hint">Leave blank for automatic time edition</string>
+    <string name="vault_require_lock">Protect Stealth Vault with Device Lock</string>
+    <string name="glass_opacity_label">Card Glass Opacity: %1$d%%</string>
+    <string name="quick_toolbox_title">Owl Quick Command</string>
+    <string name="open_device_settings">Device Settings</string>
+    <string name="open_wifi_settings">Wi‑Fi Settings</string>
+    <string name="open_display_settings">Display Settings</string>
+
+    <!-- 24 Multi-Touch Gestures -->
+    <string name="gestures_intro">Customize 24 multi-touch, swipe, pinch, rotate, and edge gestures. Assign any gesture to launch an app, switch layers, or toggle Safety Shield.</string>
+    <string name="gesture_pick_action_title">Assign Gesture Action</string>
+    <string name="gesture_pick_app_title">Select App to Launch</string>
+
+    <string name="g_1f_swipe_up">1-Finger Swipe Up</string>
+    <string name="g_1f_swipe_down">1-Finger Swipe Down</string>
+    <string name="g_1f_double_tap">1-Finger Double Tap</string>
+    <string name="g_1f_triple_tap">1-Finger Triple Tap</string>
+    <string name="g_2f_swipe_up">2-Finger Swipe Up</string>
+    <string name="g_2f_swipe_down">2-Finger Swipe Down</string>
+    <string name="g_2f_swipe_left">2-Finger Swipe Left</string>
+    <string name="g_2f_swipe_right">2-Finger Swipe Right</string>
+    <string name="g_2f_tap">2-Finger Tap</string>
+    <string name="g_2f_double_tap">2-Finger Double Tap</string>
+    <string name="g_2f_pinch_in">2-Finger Pinch In</string>
+    <string name="g_2f_spread_out">2-Finger Spread Out</string>
+    <string name="g_2f_rotate_cw">2-Finger Rotate Clockwise</string>
+    <string name="g_2f_rotate_ccw">2-Finger Rotate Counter-CW</string>
+    <string name="g_3f_swipe_up">3-Finger Swipe Up</string>
+    <string name="g_3f_swipe_down">3-Finger Swipe Down</string>
+    <string name="g_3f_swipe_left">3-Finger Swipe Left</string>
+    <string name="g_3f_swipe_right">3-Finger Swipe Right</string>
+    <string name="g_3f_tap">3-Finger Tap</string>
+    <string name="g_4f_swipe_up">4-Finger Swipe Up</string>
+    <string name="g_4f_swipe_down">4-Finger Swipe Down</string>
+    <string name="g_4f_tap">4-Finger Tap</string>
+    <string name="g_edge_left_in">Left Edge Swipe In</string>
+    <string name="g_edge_right_in">Right Edge Swipe In</string>
+
+    <!-- Gesture Actions -->
+    <string name="ga_none">Disabled</string>
+    <string name="ga_open_drawer">Open All Apps Drawer</string>
+    <string name="ga_open_quick_cmd">Open Quick Search &amp; Command</string>
+    <string name="ga_open_settings">Open Launcher Settings</string>
+    <string name="ga_toggle_edit">Toggle Edit Mode</string>
+    <string name="ga_open_widgets">Open Widget Picker</string>
+    <string name="ga_next_page">Next Home Layer</string>
+    <string name="ga_prev_page">Previous Home Layer</string>
+    <string name="ga_first_page">Jump to First Layer</string>
+    <string name="ga_last_page">Jump to Last Layer</string>
+    <string name="ga_open_vault">Open Stealth Vault</string>
+    <string name="ga_toggle_night_owl">Toggle Night Owl Mode</string>
+    <string name="ga_toggle_focus">Toggle Focus Perch</string>
+    <string name="ga_toggle_clean">Toggle Clean Canvas</string>
+    <string name="ga_toggle_safety">Toggle Safety Shield Mode</string>
+    <string name="ga_toggle_torch">Toggle Flashlight</string>
+    <string name="ga_open_note">Open Quick Note</string>
+    <string name="ga_expand_notifications">Expand Notifications Shade</string>
+    <string name="ga_open_device_settings">Open Device Settings</string>
+    <string name="ga_launch_app">Launch Specific App…</string>
+    <string name="ga_launch_app_named">Open: %1$s</string>
+</resources>

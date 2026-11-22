@@ -1,0 +1,6 @@
+{
+  "name": "Owl Launcher",
+  "description": "Nocturnal editorial Android home screen launcher featuring dual portrait & landscape wallpapers with independent sizing, editorial magazine landscape layout, custom icon framing without altering app artwork, real Android widgets, Night Owl mode, Focus Perch, and Stealth Vault.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
