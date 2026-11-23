@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -20,7 +21,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -37,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -53,22 +54,19 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import com.example.model.AppInfo
 import com.example.model.FolderSizeMode
 import com.example.model.IconShapeStyle
 import com.example.model.OwlNest
-import kotlin.math.roundToInt
 
 private val OwlShieldShape = GenericShape { size, _ ->
     val w = size.width
@@ -108,38 +106,46 @@ fun AppIconTile(
     onLongClick: () -> Unit,
     onCustomizeInEditMode: (() -> Unit)? = null,
     onRemoveInEditMode: (() -> Unit)? = null,
-    onDragFinished: ((Offset, IntSize) -> Unit)? = null,
-    onDragActiveChanged: ((Boolean) -> Unit)? = null,
+    dragController: HomeDragController? = null,
+    dragPayload: HomeDragPayload.App? = null,
+    pageIndex: Int = 0,
+    indexInPage: Int = 0,
+    isMergeHighlighted: Boolean = false,
+    isHiddenWhileDragged: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    var isHoldingOrDragging by remember { mutableStateOf(false) }
-    var tileSize by remember { mutableStateOf(IntSize.Zero) }
+    var tileBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
 
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
 
     val touchSlopPx = with(density) { 10.dp.toPx() }
-    val dragThresholdPx = with(density) { 12.dp.toPx() }
-    val longPressMs = 380L
+    val longPressMs = 340L
 
     val latestOnClick by rememberUpdatedState(onClick)
-    val latestOnLongClick by rememberUpdatedState(onLongClick)
     val latestCustomize by rememberUpdatedState(onCustomizeInEditMode)
-    val latestDragFinished by rememberUpdatedState(onDragFinished)
-    val latestDragActiveChanged by rememberUpdatedState(onDragActiveChanged)
     val latestEditMode by rememberUpdatedState(isEditMode)
+    val latestPayload by rememberUpdatedState(dragPayload)
+    val latestController by rememberUpdatedState(dragController)
 
-    // Unified gesture handling when placed on Home Layer (onDragFinished != null):
-    // - Short tap -> Launch app (or customize in Edit Mode)
-    // - Quick swipe -> Ignored so HorizontalPager / App Drawer swipe-up work smoothly
-    // - Long-press + Move without lifting -> Smooth live drag & drop to desired position
-    // - Long-press + Lift without moving -> Opens existing AppContextActionDialog options
-    val interactiveModifier = if (onDragFinished != null) {
+    if (dragController != null && dragPayload != null) {
+        DisposableEffect(dragController, pageIndex, app.componentKey) {
+            onDispose {
+                dragController.appSlots.remove("${pageIndex}_${app.componentKey}")
+            }
+        }
+    }
+
+    val mergeScale by animateFloatAsState(
+        targetValue = if (isMergeHighlighted) 1.12f else 1f,
+        label = "app_merge_scale"
+    )
+
+    val interactiveModifier = if (dragController != null && dragPayload != null) {
         Modifier
             .indication(interactionSource, ripple())
-            .pointerInput(app.componentKey) {
+            .pointerInput(app.componentKey, pageIndex) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     if (down.isConsumed) return@awaitEachGesture
@@ -148,89 +154,61 @@ fun AppIconTile(
                     interactionSource.tryEmit(press)
 
                     val downTime = System.currentTimeMillis()
-                    var longPressTriggered = false
+                    var lastLocalPos = down.position
                     var cancelledByMovement = false
                     var consumedByChildBadge = false
-                    var maxDragDistance = 0f
 
                     try {
                         while (true) {
                             val elapsed = System.currentTimeMillis() - downTime
                             val remaining = (longPressMs - elapsed).coerceAtLeast(1L)
-
-                            val event = if (!longPressTriggered) {
-                                withTimeoutOrNull(remaining) { awaitPointerEvent() }
-                            } else {
-                                awaitPointerEvent()
-                            }
+                            val event = withTimeoutOrNull(remaining) { awaitPointerEvent() }
 
                             if (event == null) {
-                                // Long-press timeout reached while finger is still down!
-                                longPressTriggered = true
-                                isHoldingOrDragging = true
-                                dragOffset = Offset.Zero
+                                // Long press threshold reached while holding -> hand off to root overlay!
                                 interactionSource.tryEmit(PressInteraction.Cancel(press))
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                latestDragActiveChanged?.invoke(true)
-                                continue
+                                val controller = latestController
+                                val payload = latestPayload
+                                if (controller != null && payload != null && tileBoundsInRoot != Rect.Zero) {
+                                    val pointerInRoot = tileBoundsInRoot.topLeft + lastLocalPos
+                                    controller.startDrag(
+                                        payload = payload,
+                                        pointerId = down.id,
+                                        pointerPosInRoot = pointerInRoot,
+                                        tileBoundsInRoot = tileBoundsInRoot
+                                    )
+                                }
+                                break
                             }
 
                             val change = event.changes.firstOrNull { it.id == down.id }
                                 ?: event.changes.firstOrNull()
                             if (change == null) break
 
-                            if (!longPressTriggered) {
-                                val dist = (change.position - down.position).getDistance()
-                                if (change.isConsumed) {
-                                    consumedByChildBadge = true
-                                }
-                                if (!change.pressed) {
-                                    interactionSource.tryEmit(PressInteraction.Release(press))
-                                    if (!consumedByChildBadge && dist < touchSlopPx) {
-                                        change.consume()
-                                        if (latestEditMode && latestCustomize != null) {
-                                            latestCustomize?.invoke()
-                                        } else {
-                                            latestOnClick()
-                                        }
-                                    }
-                                    break
-                                } else if (dist > touchSlopPx) {
-                                    // Normal scroll or swipe-up/sideways: let parent handle it
-                                    cancelledByMovement = true
-                                    interactionSource.tryEmit(PressInteraction.Cancel(press))
-                                    break
-                                }
-                            } else {
-                                // Holding after long press: follow finger smoothly!
-                                if (change.pressed) {
-                                    val delta = change.position - change.previousPosition
+                            lastLocalPos = change.position
+                            val dist = (change.position - down.position).getDistance()
+                            if (change.isConsumed) {
+                                consumedByChildBadge = true
+                            }
+                            if (!change.pressed) {
+                                interactionSource.tryEmit(PressInteraction.Release(press))
+                                if (!consumedByChildBadge && dist < touchSlopPx) {
                                     change.consume()
-                                    dragOffset += delta
-                                    maxDragDistance = maxOf(maxDragDistance, dragOffset.getDistance())
-                                } else {
-                                    change.consume()
-                                    val finalOffset = dragOffset
-                                    val didMove = maxDragDistance >= dragThresholdPx
-                                    isHoldingOrDragging = false
-                                    dragOffset = Offset.Zero
-                                    latestDragActiveChanged?.invoke(false)
-
-                                    if (didMove) {
-                                        latestDragFinished?.invoke(finalOffset, tileSize)
+                                    if (latestEditMode && latestCustomize != null) {
+                                        latestCustomize?.invoke()
                                     } else {
-                                        latestOnLongClick()
+                                        latestOnClick()
                                     }
-                                    break
                                 }
+                                break
+                            } else if (dist > touchSlopPx) {
+                                cancelledByMovement = true
+                                interactionSource.tryEmit(PressInteraction.Cancel(press))
+                                break
                             }
                         }
                     } finally {
-                        if (isHoldingOrDragging) {
-                            isHoldingOrDragging = false
-                            dragOffset = Offset.Zero
-                            latestDragActiveChanged?.invoke(false)
-                        }
                         if (cancelledByMovement) {
                             interactionSource.tryEmit(PressInteraction.Cancel(press))
                         }
@@ -246,14 +224,21 @@ fun AppIconTile(
 
     Column(
         modifier = modifier
-            .zIndex(if (isHoldingOrDragging) 25f else 0f)
-            .onSizeChanged { tileSize = it }
-            .offset { IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt()) }
             .graphicsLayer {
-                if (isHoldingOrDragging) {
-                    scaleX = 1.15f
-                    scaleY = 1.15f
-                    alpha = 0.92f
+                scaleX = mergeScale
+                scaleY = mergeScale
+                alpha = if (isHiddenWhileDragged) 0f else 1f
+            }
+            .onGloballyPositioned { coords ->
+                val bounds = coords.boundsInRoot()
+                tileBoundsInRoot = bounds
+                if (dragController != null && dragPayload != null) {
+                    dragController.registerAppSlot(
+                        componentKey = app.componentKey,
+                        pageIndex = pageIndex,
+                        indexInPage = indexInPage,
+                        bounds = bounds
+                    )
                 }
             }
             .testTag("app_icon_${app.packageName}")
@@ -265,7 +250,18 @@ fun AppIconTile(
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(iconSize + 10.dp)
+            modifier = Modifier
+                .size(iconSize + 10.dp)
+                .then(
+                    if (isMergeHighlighted) {
+                        Modifier
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.24f))
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             UnalteredAppIconArtwork(
                 app = app,
@@ -399,6 +395,12 @@ fun OwlNestTile(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onLaunchAppDirectly: (AppInfo) -> Unit,
+    dragController: HomeDragController? = null,
+    dragPayload: HomeDragPayload.Nest? = null,
+    pageIndex: Int = 0,
+    indexInPage: Int = 0,
+    isMergeHighlighted: Boolean = false,
+    isHiddenWhileDragged: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val effectiveShape = nest.shapeOverride ?: globalIconShape
@@ -408,10 +410,37 @@ fun OwlNestTile(
         effectiveShape.toComposeShape()
     }
 
+    if (dragController != null) {
+        DisposableEffect(dragController, pageIndex, nest.id) {
+            onDispose {
+                dragController.nestSlots.remove("${pageIndex}_${nest.id}")
+            }
+        }
+    }
+
+    val mergeScale by animateFloatAsState(
+        targetValue = if (isMergeHighlighted) 1.08f else 1f,
+        label = "nest_merge_scale"
+    )
+
     if (nest.folderSize != FolderSizeMode.SIZE_1X1) {
         Surface(
             modifier = modifier
                 .fillMaxWidth()
+                .graphicsLayer {
+                    scaleX = mergeScale
+                    scaleY = mergeScale
+                }
+                .onGloballyPositioned { coords ->
+                    if (dragController != null) {
+                        dragController.registerNestSlot(
+                            nestId = nest.id,
+                            pageIndex = pageIndex,
+                            indexInPage = indexInPage,
+                            bounds = coords.boundsInRoot()
+                        )
+                    }
+                }
                 .testTag("owl_nest_big_${nest.id}")
                 .clip(RoundedCornerShape(22.dp))
                 .combinedClickable(
@@ -421,9 +450,12 @@ fun OwlNestTile(
             shape = RoundedCornerShape(22.dp),
             color = MaterialTheme.colorScheme.surface.copy(alpha = glassOpacity),
             border = BorderStroke(
-                1.dp,
-                if (isEditMode) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                width = if (isMergeHighlighted) 2.dp else 1.dp,
+                color = if (isEditMode || isMergeHighlighted) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                }
             )
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
@@ -513,14 +545,110 @@ fun OwlNestTile(
         return
     }
 
+    var tileBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val touchSlopPx = with(density) { 10.dp.toPx() }
+    val longPressMs = 340L
+
+    val latestOnClick by rememberUpdatedState(onClick)
+    val latestOnLongClick by rememberUpdatedState(onLongClick)
+    val latestEditMode by rememberUpdatedState(isEditMode)
+    val latestController by rememberUpdatedState(dragController)
+    val latestPayload by rememberUpdatedState(dragPayload)
+
+    val nestInteractiveModifier = if (dragController != null && dragPayload != null) {
+        Modifier
+            .indication(interactionSource, ripple())
+            .pointerInput(nest.id, pageIndex) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    if (down.isConsumed) return@awaitEachGesture
+
+                    val press = PressInteraction.Press(down.position)
+                    interactionSource.tryEmit(press)
+                    val downTime = System.currentTimeMillis()
+                    var lastLocalPos = down.position
+                    var cancelledByMovement = false
+
+                    try {
+                        while (true) {
+                            val elapsed = System.currentTimeMillis() - downTime
+                            val remaining = (longPressMs - elapsed).coerceAtLeast(1L)
+                            val event = withTimeoutOrNull(remaining) { awaitPointerEvent() }
+
+                            if (event == null) {
+                                interactionSource.tryEmit(PressInteraction.Cancel(press))
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                val controller = latestController
+                                val payload = latestPayload
+                                if (controller != null && payload != null && tileBoundsInRoot != Rect.Zero) {
+                                    controller.startDrag(
+                                        payload = payload,
+                                        pointerId = down.id,
+                                        pointerPosInRoot = tileBoundsInRoot.topLeft + lastLocalPos,
+                                        tileBoundsInRoot = tileBoundsInRoot
+                                    )
+                                }
+                                break
+                            }
+
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                                ?: event.changes.firstOrNull()
+                            if (change == null) break
+
+                            lastLocalPos = change.position
+                            val dist = (change.position - down.position).getDistance()
+                            if (!change.pressed) {
+                                interactionSource.tryEmit(PressInteraction.Release(press))
+                                if (dist < touchSlopPx) {
+                                    change.consume()
+                                    if (latestEditMode) latestOnLongClick() else latestOnClick()
+                                }
+                                break
+                            } else if (dist > touchSlopPx) {
+                                cancelledByMovement = true
+                                interactionSource.tryEmit(PressInteraction.Cancel(press))
+                                break
+                            }
+                        }
+                    } finally {
+                        if (cancelledByMovement) {
+                            interactionSource.tryEmit(PressInteraction.Cancel(press))
+                        }
+                    }
+                }
+            }
+    } else {
+        Modifier.combinedClickable(
+            onClick = if (isEditMode) onLongClick else onClick,
+            onLongClick = onLongClick
+        )
+    }
+
     Column(
         modifier = modifier
+            .graphicsLayer {
+                scaleX = mergeScale
+                scaleY = mergeScale
+                alpha = if (isHiddenWhileDragged) 0f else 1f
+            }
+            .onGloballyPositioned { coords ->
+                val bounds = coords.boundsInRoot()
+                tileBoundsInRoot = bounds
+                if (dragController != null) {
+                    dragController.registerNestSlot(
+                        nestId = nest.id,
+                        pageIndex = pageIndex,
+                        indexInPage = indexInPage,
+                        bounds = bounds
+                    )
+                }
+            }
             .testTag("owl_nest_${nest.id}")
             .clip(RoundedCornerShape(16.dp))
-            .combinedClickable(
-                onClick = if (isEditMode) onLongClick else onClick,
-                onLongClick = onLongClick
-            )
+            .then(nestInteractiveModifier)
             .padding(horizontal = 4.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -528,10 +656,20 @@ fun OwlNestTile(
             modifier = Modifier
                 .size(iconSize + 4.dp)
                 .clip(shape)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = glassOpacity))
+                .background(
+                    if (isMergeHighlighted) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                    } else {
+                        MaterialTheme.colorScheme.surface.copy(alpha = glassOpacity)
+                    }
+                )
                 .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.50f),
+                    width = if (isMergeHighlighted) 2.dp else 1.dp,
+                    color = if (isMergeHighlighted) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
+                    },
                     shape = shape
                 ),
             contentAlignment = Alignment.Center

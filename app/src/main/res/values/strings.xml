@@ -102,10 +102,15 @@
 
     <!-- Owl Nests (Folders) -->
     <string name="create_nest">New Folder</string>
+    <string name="auto_folder_name_format">Folder %1$d</string>
+    <string name="nest_rename_label">Folder Name</string>
     <string name="nest_name_hint">Folder name (e.g. Work, Reading)</string>
     <string name="nest_create_btn">Create Folder</string>
     <string name="nest_delete_btn">Delete Folder</string>
     <string name="nest_empty">No apps inside this folder yet</string>
+    <string name="folder_remove_zone">Remove from folder</string>
+    <string name="folder_extract_zone">Release outside to place on Home</string>
+    <string name="folder_customize_desc">Customize folder</string>
     <string name="choose_nest_title">Choose a Folder</string>
     <string name="folder_style_label">Folder Size &amp; Layout</string>
     <string name="folder_size_1x1">1×1 Classic</string>
@@ -210,7 +215,7 @@
     <string name="icon_size_label">Global Icon Size: %1$ddp</string>
     <string name="icon_frame_backdrop">Subtle Frame Ring</string>
     <string name="show_app_labels">Show App Labels</string>
-    <string name="show_dock_toggle">Show Bottom Dock</string>
+    <string name="show_dock_toggle">Show App Dock</string>
     <string name="portrait_columns_label">Portrait Grid Columns: %1$d</string>
     <string name="landscape_columns_label">Landscape Grid Columns: %1$d</string>
 
@@ -262,8 +267,6 @@
     <!-- Gesture Actions -->
     <string name="ga_none">Disabled</string>
     <string name="ga_open_drawer">Open All Apps Drawer</string>
-    <string name="ga_open_quick_cmd">Open Quick Search &amp; Command</string>
-    <string name="ga_open_settings">Open Launcher Settings</string>
     <string name="ga_toggle_edit">Toggle Edit Mode</string>
     <string name="ga_open_widgets">Open Widget Picker</string>
     <string name="ga_next_page">Next Home Layer</string>

@@ -265,6 +265,22 @@ fun ItemCustomizationDialog(
 
                     is ItemCustomizationTarget.NestTarget -> {
                         val nest = target.nest
+                        var folderName by remember(nest.id) { mutableStateOf(nest.name) }
+                        OutlinedTextField(
+                            value = folderName,
+                            onValueChange = { nextName ->
+                                folderName = nextName
+                                if (nextName.isNotBlank()) {
+                                    onUpdateNest(nest.copy(name = nextName))
+                                }
+                            },
+                            label = { Text(stringResource(R.string.nest_rename_label)) },
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("nest_rename_input")
+                        )
+
                         Text(
                             text = stringResource(R.string.folder_style_label),
                             style = MaterialTheme.typography.labelLarge
@@ -490,107 +506,6 @@ private fun MenuActionRow(
             color = tint
         )
     }
-}
-
-@Composable
-fun OwlNestViewerDialog(
-    nest: OwlNest,
-    uiState: LauncherUiState,
-    onDismiss: () -> Unit,
-    onLaunchApp: (AppInfo) -> Unit,
-    onRemoveAppFromNest: (String) -> Unit,
-    onCustomizeNest: () -> Unit,
-    onDeleteNest: () -> Unit
-) {
-    val apps = nest.appKeys.mapNotNull { uiState.findApp(it) }
-    val prefs = uiState.prefs
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.FolderSpecial,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(nest.name)
-                }
-                TextButton(onClick = { onDismiss(); onCustomizeNest() }) {
-                    Text(stringResource(R.string.action_customize_item))
-                }
-            }
-        },
-        text = {
-            if (apps.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.nest_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 320.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(apps, key = { it.componentKey }) { app ->
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onLaunchApp(app)
-                                    onDismiss()
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                UnalteredAppIconArtwork(
-                                    app = app,
-                                    iconShape = nest.shapeOverride ?: prefs.iconShape,
-                                    iconSize = 38.dp,
-                                    showFrameBackdrop = prefs.showIconFrameBackdrop
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = app.label,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                TextButton(onClick = { onRemoveAppFromNest(app.componentKey) }) {
-                                    Text(stringResource(R.string.widget_remove))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDeleteNest) {
-                Text(
-                    text = stringResource(R.string.nest_delete_btn),
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
-            }
-        }
-    )
 }
 
 @Composable

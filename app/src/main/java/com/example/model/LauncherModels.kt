@@ -159,8 +159,6 @@ enum class GestureId {
 enum class GestureActionType {
     NONE,
     OPEN_DRAWER,
-    OPEN_QUICK_CMD,
-    OPEN_SETTINGS,
     TOGGLE_EDIT,
     OPEN_WIDGETS,
     NEXT_PAGE,
@@ -187,7 +185,7 @@ data class GestureBinding(
 
 fun defaultGestureBindings(): Map<GestureId, GestureBinding> = mapOf(
     GestureId.ONE_F_SWIPE_UP to GestureBinding(GestureActionType.OPEN_DRAWER),
-    GestureId.ONE_F_SWIPE_DOWN to GestureBinding(GestureActionType.OPEN_QUICK_CMD),
+    GestureId.ONE_F_SWIPE_DOWN to GestureBinding(GestureActionType.EXPAND_NOTIFICATIONS),
     GestureId.ONE_F_DOUBLE_TAP to GestureBinding(GestureActionType.TOGGLE_CLEAN),
     GestureId.ONE_F_TRIPLE_TAP to GestureBinding(GestureActionType.TOGGLE_NIGHT_OWL),
     GestureId.TWO_F_SWIPE_UP to GestureBinding(GestureActionType.OPEN_DRAWER),
@@ -196,20 +194,20 @@ fun defaultGestureBindings(): Map<GestureId, GestureBinding> = mapOf(
     GestureId.TWO_F_SWIPE_RIGHT to GestureBinding(GestureActionType.PREV_PAGE),
     GestureId.TWO_F_TAP to GestureBinding(GestureActionType.TOGGLE_FOCUS),
     GestureId.TWO_F_DOUBLE_TAP to GestureBinding(GestureActionType.TOGGLE_EDIT),
-    GestureId.TWO_F_PINCH_IN to GestureBinding(GestureActionType.OPEN_SETTINGS),
+    GestureId.TWO_F_PINCH_IN to GestureBinding(GestureActionType.TOGGLE_CLEAN),
     GestureId.TWO_F_SPREAD_OUT to GestureBinding(GestureActionType.OPEN_VAULT),
     GestureId.TWO_F_ROTATE_CW to GestureBinding(GestureActionType.TOGGLE_TORCH),
     GestureId.TWO_F_ROTATE_CCW to GestureBinding(GestureActionType.OPEN_WIDGETS),
-    GestureId.THREE_F_SWIPE_UP to GestureBinding(GestureActionType.OPEN_QUICK_CMD),
+    GestureId.THREE_F_SWIPE_UP to GestureBinding(GestureActionType.OPEN_DRAWER),
     GestureId.THREE_F_SWIPE_DOWN to GestureBinding(GestureActionType.TOGGLE_SAFETY),
     GestureId.THREE_F_SWIPE_LEFT to GestureBinding(GestureActionType.LAST_PAGE),
     GestureId.THREE_F_SWIPE_RIGHT to GestureBinding(GestureActionType.FIRST_PAGE),
     GestureId.THREE_F_TAP to GestureBinding(GestureActionType.TOGGLE_SAFETY),
-    GestureId.FOUR_F_SWIPE_UP to GestureBinding(GestureActionType.OPEN_SETTINGS),
+    GestureId.FOUR_F_SWIPE_UP to GestureBinding(GestureActionType.FIRST_PAGE),
     GestureId.FOUR_F_SWIPE_DOWN to GestureBinding(GestureActionType.OPEN_DEVICE_SETTINGS),
     GestureId.FOUR_F_TAP to GestureBinding(GestureActionType.OPEN_WIDGETS),
-    GestureId.EDGE_LEFT_IN to GestureBinding(GestureActionType.OPEN_NOTE),
-    GestureId.EDGE_RIGHT_IN to GestureBinding(GestureActionType.OPEN_QUICK_CMD)
+    GestureId.EDGE_LEFT_IN to GestureBinding(GestureActionType.PREV_PAGE),
+    GestureId.EDGE_RIGHT_IN to GestureBinding(GestureActionType.NEXT_PAGE)
 )
 
 @Immutable
@@ -226,9 +224,9 @@ data class LauncherPreferencesState(
     val iconShape: IconShapeStyle = IconShapeStyle.ORIGINAL,
     val iconSizeDp: Int = 54,
     val showIconFrameBackdrop: Boolean = false,
-    val showAppLabels: Boolean = true,
+    val showAppLabels: Boolean = false,
     val portraitColumns: Int = 4,
-    val landscapeColumns: Int = 4,
+    val landscapeColumns: Int = 5,
     val glassOpacity: Float = 0.54f,
     val accentTheme: OwlAccentTheme = OwlAccentTheme.AMBER,
     val nightOwlMode: Boolean = false,
@@ -243,22 +241,7 @@ data class LauncherPreferencesState(
     val hiddenAppKeys: Set<String> = emptySet(),
     val focusEssentialAppKeys: Set<String> = emptySet(),
     val owlNests: List<OwlNest> = emptyList(),
-    val placedWidgets: List<PlacedWidget> = listOf(
-        PlacedWidget(
-            id = "owl_native_system_default",
-            kind = PlacedWidgetKind.OWL_NATIVE,
-            pageIndex = 0,
-            nativeType = OwlNativeWidgetType.SYSTEM_GLANCE,
-            size = WidgetSize.WIDE
-        ),
-        PlacedWidget(
-            id = "owl_native_wisdom_default",
-            kind = PlacedWidgetKind.OWL_NATIVE,
-            pageIndex = 0,
-            nativeType = OwlNativeWidgetType.OWL_WISDOM,
-            size = WidgetSize.WIDE
-        )
-    ),
+    val placedWidgets: List<PlacedWidget> = emptyList(),
     val gestureBindings: Map<GestureId, GestureBinding> = defaultGestureBindings()
 )
 

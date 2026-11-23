@@ -492,7 +492,7 @@ private fun AppGridRow(
                         iconShape = prefs.iconShape,
                         iconSize = prefs.iconSizeDp.dp,
                         showFrameBackdrop = prefs.showIconFrameBackdrop,
-                        showLabel = prefs.showAppLabels,
+                        showLabel = true,
                         isEditMode = false,
                         onClick = { onLaunchApp(app) },
                         onLongClick = { onShowAppMenu(app) }

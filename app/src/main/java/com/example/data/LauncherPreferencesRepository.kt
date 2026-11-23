@@ -96,6 +96,7 @@ class LauncherPreferencesRepository(private val context: Context) {
         val PLACED_WIDGETS_JSON = stringPreferencesKey("placed_widgets_json")
         val WIDGETS_INITIALIZED = booleanPreferencesKey("widgets_initialized")
         val GESTURES_JSON = stringPreferencesKey("gestures_v1_json")
+        val CLEAN_HOME_V2_MIGRATED = booleanPreferencesKey("clean_home_v2_migrated")
     }
 
     val preferencesFlow: Flow<LauncherPreferencesState> = context.launcherDataStore.data.map { prefs ->
@@ -146,9 +147,9 @@ class LauncherPreferencesRepository(private val context: Context) {
             iconShape = prefs[Keys.ICON_SHAPE].toEnumOrDefault(IconShapeStyle.ORIGINAL),
             iconSizeDp = (prefs[Keys.ICON_SIZE_DP] ?: 54).coerceIn(40, 72),
             showIconFrameBackdrop = prefs[Keys.ICON_FRAME_BACKDROP] ?: false,
-            showAppLabels = prefs[Keys.SHOW_APP_LABELS] ?: true,
+            showAppLabels = prefs[Keys.SHOW_APP_LABELS] ?: false,
             portraitColumns = (prefs[Keys.PORTRAIT_COLUMNS] ?: 4).coerceIn(3, 6),
-            landscapeColumns = (prefs[Keys.LANDSCAPE_COLUMNS] ?: 4).coerceIn(3, 6),
+            landscapeColumns = (prefs[Keys.LANDSCAPE_COLUMNS] ?: 5).coerceIn(3, 7),
             glassOpacity = (prefs[Keys.GLASS_OPACITY] ?: 0.54f).coerceIn(0.15f, 0.90f),
             accentTheme = prefs[Keys.ACCENT_THEME].toEnumOrDefault(OwlAccentTheme.AMBER),
             nightOwlMode = prefs[Keys.NIGHT_OWL_MODE] ?: false,
@@ -170,6 +171,22 @@ class LauncherPreferencesRepository(private val context: Context) {
 
     val dockInitializedFlow: Flow<Boolean> = context.launcherDataStore.data.map { prefs ->
         prefs[Keys.DOCK_INITIALIZED] ?: false
+    }
+
+    suspend fun ensureCleanHomeDefaultsOnce() {
+        context.launcherDataStore.edit { prefs ->
+            if (prefs[Keys.CLEAN_HOME_V2_MIGRATED] != true) {
+                prefs[Keys.SHOW_APP_LABELS] = false
+                val existingWidgets = decodeWidgets(prefs[Keys.PLACED_WIDGETS_JSON])
+                val filteredWidgets = existingWidgets.filterNot {
+                    it.id == "owl_native_system_default" || it.id == "owl_native_wisdom_default"
+                }
+                if (existingWidgets.size != filteredWidgets.size) {
+                    prefs[Keys.PLACED_WIDGETS_JSON] = encodeWidgets(filteredWidgets)
+                }
+                prefs[Keys.CLEAN_HOME_V2_MIGRATED] = true
+            }
+        }
     }
 
     suspend fun savePortraitWallpaperFromUri(uri: Uri): Boolean = withContext(Dispatchers.IO) {
@@ -293,7 +310,7 @@ class LauncherPreferencesRepository(private val context: Context) {
             frameBackdrop?.let { prefs[Keys.ICON_FRAME_BACKDROP] = it }
             showLabels?.let { prefs[Keys.SHOW_APP_LABELS] = it }
             portraitColumns?.let { prefs[Keys.PORTRAIT_COLUMNS] = it.coerceIn(3, 6) }
-            landscapeColumns?.let { prefs[Keys.LANDSCAPE_COLUMNS] = it.coerceIn(3, 6) }
+            landscapeColumns?.let { prefs[Keys.LANDSCAPE_COLUMNS] = it.coerceIn(3, 7) }
         }
     }
 

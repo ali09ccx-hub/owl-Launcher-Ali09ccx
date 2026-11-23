@@ -102,10 +102,15 @@
 
     <!-- Owl Nests (Folders) -->
     <string name="create_nest">مجلد جديد</string>
+    <string name="auto_folder_name_format">مجلد %1$d</string>
+    <string name="nest_rename_label">اسم المجلد</string>
     <string name="nest_name_hint">اسم المجلد (مثلاً: العمل، القراءة)</string>
     <string name="nest_create_btn">إنشاء المجلد</string>
     <string name="nest_delete_btn">حذف المجلد</string>
     <string name="nest_empty">لا توجد تطبيقات في هذا المجلد بعد</string>
+    <string name="folder_remove_zone">إزالة من المجلد</string>
+    <string name="folder_extract_zone">أفلت بالخارج لإخراجه للشاشة الرئيسية</string>
+    <string name="folder_customize_desc">تخصيص المجلد</string>
     <string name="choose_nest_title">اختر المجلد</string>
     <string name="folder_style_label">حجم ونمط المجلد</string>
     <string name="folder_size_1x1">1×1 مصغّر</string>
@@ -210,7 +215,7 @@
     <string name="icon_size_label">حجم الأيقونات العام: %1$ddp</string>
     <string name="icon_frame_backdrop">إطار زجاجي خفيف</string>
     <string name="show_app_labels">إظهار أسماء التطبيقات</string>
-    <string name="show_dock_toggle">إظهار الشريط السفلي</string>
+    <string name="show_dock_toggle">إظهار شريط التطبيقات</string>
     <string name="portrait_columns_label">أعمدة الوضع العامودي: %1$d</string>
     <string name="landscape_columns_label">أعمدة الوضع الأفقي: %1$d</string>
 
@@ -262,8 +267,6 @@
     <!-- Gesture Actions -->
     <string name="ga_none">معطّل</string>
     <string name="ga_open_drawer">فتح قائمة كل التطبيقات</string>
-    <string name="ga_open_quick_cmd">فتح البحث والأوامر السريعة</string>
-    <string name="ga_open_settings">فتح إعدادات اللانشر</string>
     <string name="ga_toggle_edit">تفعيل/إلغاء القلم والتعديل</string>
     <string name="ga_open_widgets">فتح قائمة الودجات</string>
     <string name="ga_next_page">الانتقال للطبقة التالية</string>

@@ -15,6 +15,8 @@ import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
@@ -29,8 +31,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -43,11 +47,10 @@ import com.example.ui.components.AppContextActionDialog
 import com.example.ui.components.AppDrawerSheet
 import com.example.ui.components.CreateNestDialog
 import com.example.ui.components.DispatchNoteEditorDialog
+import com.example.ui.components.ExpandedFolderOverlay
 import com.example.ui.components.ItemCustomizationDialog
 import com.example.ui.components.LandscapeEditorialHomeScreen
-import com.example.ui.components.OwlNestViewerDialog
 import com.example.ui.components.PortraitHomeScreen
-import com.example.ui.components.QuickCommandSheet
 import com.example.ui.components.SettingsStudioSheet
 import com.example.ui.components.WallpaperCanvas
 import com.example.ui.components.WidgetPickerSheet
@@ -229,22 +232,27 @@ private fun OwlLauncherRoot(
                     onLongPressHome = { viewModel.onHomeBackgroundLongPress() },
                     onCloseControlBar = { viewModel.closeHomeControlBarAndEdit() },
                     onToggleEditMode = { viewModel.setEditMode(!uiState.isEditMode) },
-                    onOpenDrawer = { viewModel.openDrawer(true) },
                     onOpenSettings = { tab -> viewModel.openSettings(true, tab) },
                     onOpenWidgetPicker = { viewModel.openWidgetPicker(true) },
                     onOpenCreateNest = { viewModel.openCreateNestDialog(true) },
                     onAddPage = { viewModel.addHomePage() },
                     onRemovePage = { viewModel.removeCurrentHomePage() },
-                    onToggleNightOwl = { viewModel.toggleNightOwlMode() },
-                    onToggleFocusPerch = { viewModel.toggleFocusPerch() },
-                    onToggleCleanCanvas = { viewModel.toggleCleanCanvasMode() },
-                    onToggleSafetyShield = { viewModel.toggleSafetyShield() },
-                    onRequestSetDefaultLauncher = onRequestSetDefaultLauncher,
+                    onJumpToPage = { page -> viewModel.jumpToPage(page) },
                     onLaunchApp = { viewModel.launchApp(it) },
                     onShowAppMenu = { viewModel.showAppMenu(it) },
                     onUnpinHomeApp = { viewModel.togglePinHome(it) },
-                    onMoveAppStep = { key, delta -> viewModel.movePlacedAppStep(key, delta) },
-                    onMoveAppToPage = { key, page -> viewModel.movePlacedAppToPage(key, page) },
+                    onReorderOrMoveApp = { key, page, idx ->
+                        viewModel.reorderOrMovePlacedApp(key, page, idx)
+                    },
+                    onMergeAppsIntoFolder = { draggedKey, targetKey, page ->
+                        viewModel.mergeAppsIntoFolder(draggedKey, targetKey, page)
+                    },
+                    onDropAppIntoNest = { draggedKey, nestId ->
+                        viewModel.dropAppIntoNest(draggedKey, nestId)
+                    },
+                    onReorderOrMoveNest = { nestId, page, idx ->
+                        viewModel.reorderOrMoveNest(nestId, page, idx)
+                    },
                     onCustomizeItem = { viewModel.openItemCustomization(it) },
                     onOpenNest = { viewModel.openNest(it) },
                     onToggleFocusTimer = { viewModel.toggleFocusTimer() },
@@ -266,22 +274,27 @@ private fun OwlLauncherRoot(
                     onLongPressHome = { viewModel.onHomeBackgroundLongPress() },
                     onCloseControlBar = { viewModel.closeHomeControlBarAndEdit() },
                     onToggleEditMode = { viewModel.setEditMode(!uiState.isEditMode) },
-                    onOpenDrawer = { viewModel.openDrawer(true) },
                     onOpenSettings = { tab -> viewModel.openSettings(true, tab) },
                     onOpenWidgetPicker = { viewModel.openWidgetPicker(true) },
                     onOpenCreateNest = { viewModel.openCreateNestDialog(true) },
                     onAddPage = { viewModel.addHomePage() },
                     onRemovePage = { viewModel.removeCurrentHomePage() },
-                    onToggleNightOwl = { viewModel.toggleNightOwlMode() },
-                    onToggleFocusPerch = { viewModel.toggleFocusPerch() },
-                    onToggleCleanCanvas = { viewModel.toggleCleanCanvasMode() },
-                    onToggleSafetyShield = { viewModel.toggleSafetyShield() },
-                    onRequestSetDefaultLauncher = onRequestSetDefaultLauncher,
+                    onJumpToPage = { page -> viewModel.jumpToPage(page) },
                     onLaunchApp = { viewModel.launchApp(it) },
                     onShowAppMenu = { viewModel.showAppMenu(it) },
                     onUnpinHomeApp = { viewModel.togglePinHome(it) },
-                    onMoveAppStep = { key, delta -> viewModel.movePlacedAppStep(key, delta) },
-                    onMoveAppToPage = { key, page -> viewModel.movePlacedAppToPage(key, page) },
+                    onReorderOrMoveApp = { key, page, idx ->
+                        viewModel.reorderOrMovePlacedApp(key, page, idx)
+                    },
+                    onMergeAppsIntoFolder = { draggedKey, targetKey, page ->
+                        viewModel.mergeAppsIntoFolder(draggedKey, targetKey, page)
+                    },
+                    onDropAppIntoNest = { draggedKey, nestId ->
+                        viewModel.dropAppIntoNest(draggedKey, nestId)
+                    },
+                    onReorderOrMoveNest = { nestId, page, idx ->
+                        viewModel.reorderOrMoveNest(nestId, page, idx)
+                    },
                     onCustomizeItem = { viewModel.openItemCustomization(it) },
                     onOpenNest = { viewModel.openNest(it) },
                     onToggleFocusTimer = { viewModel.toggleFocusTimer() },
@@ -308,24 +321,6 @@ private fun OwlLauncherRoot(
                     onLaunchApp = { viewModel.launchApp(it) },
                     onShowAppMenu = { viewModel.showAppMenu(it) },
                     onVaultUnlocked = { viewModel.setVaultUnlocked(it) }
-                )
-            }
-
-            // Quick Command Overlay
-            AnimatedVisibility(
-                visible = uiState.isQuickCommandOpen,
-                enter = slideInVertically { -it / 3 } + fadeIn(),
-                exit = slideOutVertically { -it / 3 } + fadeOut()
-            ) {
-                QuickCommandSheet(
-                    uiState = uiState,
-                    onDismiss = { viewModel.openQuickCommand(false) },
-                    onLaunchApp = { viewModel.launchApp(it) },
-                    onToggleNightOwl = { viewModel.toggleNightOwlMode() },
-                    onToggleFocusPerch = { viewModel.toggleFocusPerch() },
-                    onToggleFlashlight = { viewModel.toggleFlashlight() },
-                    onOpenSettingsStudio = { viewModel.openSettings(true, 0) },
-                    onOpenSystemSettings = { viewModel.openDeviceSettings(it) }
                 )
             }
 
@@ -421,21 +416,41 @@ private fun OwlLauncherRoot(
                 )
             }
 
-            // Folder (Nest) Viewer Dialog
-            uiState.selectedNestToOpen?.let { nest ->
-                OwlNestViewerDialog(
-                    nest = nest,
-                    uiState = uiState,
-                    onDismiss = { viewModel.openNest(null) },
-                    onLaunchApp = { viewModel.launchApp(it) },
-                    onRemoveAppFromNest = { appKey ->
-                        viewModel.removeAppFromNest(nest.id, appKey)
-                    },
-                    onCustomizeNest = {
-                        viewModel.openItemCustomization(ItemCustomizationTarget.NestTarget(nest))
-                    },
-                    onDeleteNest = { viewModel.deleteNest(nest.id) }
-                )
+            // Expanded Folder Page Overlay (Grid + Drag to Reorder / Extract to Home / Remove)
+            var lastVisibleNest by remember { mutableStateOf(uiState.selectedNestToOpen) }
+            if (uiState.selectedNestToOpen != null) {
+                lastVisibleNest = uiState.selectedNestToOpen
+            }
+            AnimatedVisibility(
+                visible = uiState.selectedNestToOpen != null,
+                enter = fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.88f),
+                exit = fadeOut() + androidx.compose.animation.scaleOut(targetScale = 0.88f)
+            ) {
+                lastVisibleNest?.let { nest ->
+                    ExpandedFolderOverlay(
+                        nest = nest,
+                        uiState = uiState,
+                        onDismiss = { viewModel.openNest(null) },
+                        onRenameNest = { newName ->
+                            viewModel.updateNest(nest.copy(name = newName))
+                        },
+                        onLaunchApp = { viewModel.launchApp(it) },
+                        onShowAppMenu = { viewModel.showAppMenu(it) },
+                        onReorderAppInNest = { appKey, targetIdx ->
+                            viewModel.reorderAppInNest(nest.id, appKey, targetIdx)
+                        },
+                        onExtractAppToHome = { appKey ->
+                            viewModel.extractAppFromNestToHome(nest.id, appKey)
+                        },
+                        onRemoveAppFromNest = { appKey ->
+                            viewModel.removeAppFromNest(nest.id, appKey)
+                        },
+                        onCustomizeNest = {
+                            viewModel.openItemCustomization(ItemCustomizationTarget.NestTarget(nest))
+                        },
+                        onDeleteNest = { viewModel.deleteNest(nest.id) }
+                    )
+                }
             }
 
             uiState.appToAddToNest?.let { app ->

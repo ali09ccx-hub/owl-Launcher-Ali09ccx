@@ -157,10 +157,6 @@ fun SettingsStudioSheet(
         prefs.portraitWallpaper
     }
 
-    var mastheadText by remember(prefs.editorialCustomTitle) {
-        mutableStateOf(prefs.editorialCustomTitle)
-    }
-
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -176,10 +172,12 @@ fun SettingsStudioSheet(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Icon(
                         imageVector = Icons.Filled.Tune,
                         contentDescription = null,
@@ -188,12 +186,13 @@ fun SettingsStudioSheet(
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = stringResource(R.string.settings_title),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = onDismiss,
                     modifier = Modifier.testTag("settings_close_btn")
@@ -393,25 +392,6 @@ fun SettingsStudioSheet(
                                 label = stringResource(R.string.vault_require_lock),
                                 checked = prefs.requireVaultDeviceLock,
                                 onCheckedChange = { onUpdateAppearance(null, null, it, null) }
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = stringResource(R.string.editorial_title_label),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            OutlinedTextField(
-                                value = mastheadText,
-                                onValueChange = {
-                                    mastheadText = it
-                                    onUpdateAppearance(null, null, null, it)
-                                },
-                                placeholder = { Text(stringResource(R.string.editorial_title_hint)) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth()
                             )
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -806,8 +786,8 @@ fun SettingsStudioSheet(
                             LabeledSlider(
                                 label = stringResource(R.string.landscape_columns_label, prefs.landscapeColumns),
                                 value = prefs.landscapeColumns.toFloat(),
-                                valueRange = 3f..6f,
-                                steps = 2,
+                                valueRange = 3f..7f,
+                                steps = 3,
                                 onValueChange = {
                                     onUpdateIconStyle(null, null, null, null, null, it.roundToInt())
                                 }
@@ -1086,8 +1066,6 @@ private fun gestureLabelRes(id: GestureId): Int = when (id) {
 private fun gestureActionLabelRes(action: GestureActionType): Int = when (action) {
     GestureActionType.NONE -> R.string.ga_none
     GestureActionType.OPEN_DRAWER -> R.string.ga_open_drawer
-    GestureActionType.OPEN_QUICK_CMD -> R.string.ga_open_quick_cmd
-    GestureActionType.OPEN_SETTINGS -> R.string.ga_open_settings
     GestureActionType.TOGGLE_EDIT -> R.string.ga_toggle_edit
     GestureActionType.OPEN_WIDGETS -> R.string.ga_open_widgets
     GestureActionType.NEXT_PAGE -> R.string.ga_next_page

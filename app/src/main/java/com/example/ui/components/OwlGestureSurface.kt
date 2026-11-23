@@ -41,7 +41,7 @@ fun OwlGestureOverlay(
 ) {
     val density = LocalDensity.current
     val edgeThresholdPx = with(density) { 26.dp.toPx() }
-    val swipeThresholdPx = with(density) { 56.dp.toPx() }
+    val swipeThresholdPx = with(density) { 44.dp.toPx() }
     val tapSlopPx = with(density) { 18.dp.toPx() }
     val longPressTimeoutMs = 520L
     val multiTapWindowMs = 280L
@@ -62,7 +62,7 @@ fun OwlGestureOverlay(
                     while (true) {
                         val event = awaitPointerEvent(pass = PointerEventPass.Initial)
                         val pressed = event.changes.count { it.pressed }
-                        if (pressed >= 2) {
+                        if (pressed >= 2 && !latestChildDragging) {
                             event.changes.forEach {
                                 if (it.positionChanged()) it.consume()
                             }
@@ -191,20 +191,19 @@ fun OwlGestureOverlay(
 
                         when (maxPointers) {
                             1 -> {
-                                if (absY > swipeThresholdPx && absY > absX * 1.25f) {
+                                if (absY > swipeThresholdPx && absY > absX * 1.15f) {
                                     if (totalPan.y < 0f) {
-                                        // Swipe Up -> Always open All Apps Drawer if page can't scroll down,
-                                        // or started in lower area, or is a clear upward flick
+                                        // 1-Finger Swipe Up -> Reliably open All Apps Drawer
                                         val allowSwipeUp = !latestCanScrollForward() ||
-                                            startPos.y > heightPx * 0.60f ||
-                                            gestureDurationMs < 420L
+                                            startPos.y > heightPx * 0.48f ||
+                                            gestureDurationMs < 650L
                                         if (allowSwipeUp) {
                                             latestOnGesture(GestureId.ONE_F_SWIPE_UP)
                                         }
                                     } else {
                                         val allowSwipeDown = !latestCanScrollBackward() ||
                                             startPos.y < heightPx * 0.25f ||
-                                            gestureDurationMs < 380L
+                                            gestureDurationMs < 420L
                                         if (allowSwipeDown) {
                                             latestOnGesture(GestureId.ONE_F_SWIPE_DOWN)
                                         }

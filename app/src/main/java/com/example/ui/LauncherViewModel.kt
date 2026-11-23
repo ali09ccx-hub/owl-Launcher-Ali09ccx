@@ -68,7 +68,6 @@ data class LauncherUiState(
     val isHomeControlBarOpen: Boolean = false,
     val isEditMode: Boolean = false,
     val isDrawerOpen: Boolean = false,
-    val isQuickCommandOpen: Boolean = false,
     val isSettingsOpen: Boolean = false,
     val initialSettingsTab: Int = 0,
     val isWidgetPickerOpen: Boolean = false,
@@ -177,7 +176,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val isHomeControlBarOpen: Boolean = false,
         val isEditMode: Boolean = false,
         val isDrawerOpen: Boolean = false,
-        val isQuickCommandOpen: Boolean = false,
         val isSettingsOpen: Boolean = false,
         val initialSettingsTab: Int = 0,
         val isWidgetPickerOpen: Boolean = false,
@@ -228,7 +226,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     isHomeControlBarOpen = eph.isHomeControlBarOpen,
                     isEditMode = eph.isEditMode,
                     isDrawerOpen = eph.isDrawerOpen,
-                    isQuickCommandOpen = eph.isQuickCommandOpen,
                     isSettingsOpen = eph.isSettingsOpen,
                     initialSettingsTab = eph.initialSettingsTab,
                     isWidgetPickerOpen = eph.isWidgetPickerOpen,
@@ -253,6 +250,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             refreshAppsAndProviders()
         }
 
+        viewModelScope.launch {
+            repository.ensureCleanHomeDefaultsOnce()
+        }
         refreshAppsAndProviders()
         refreshSystemState()
     }
@@ -394,20 +394,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _ephemeral.update {
             it.copy(
                 isDrawerOpen = open,
-                isQuickCommandOpen = if (open) false else it.isQuickCommandOpen,
                 isHomeControlBarOpen = if (open) false else it.isHomeControlBarOpen,
                 vaultUnlocked = if (!open) false else it.vaultUnlocked
-            )
-        }
-    }
-
-    fun openQuickCommand(open: Boolean) {
-        if (open) refreshSystemState()
-        _ephemeral.update {
-            it.copy(
-                isQuickCommandOpen = open,
-                isDrawerOpen = if (open) false else it.isDrawerOpen,
-                isHomeControlBarOpen = false
             )
         }
     }
@@ -418,7 +406,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             it.copy(
                 isSettingsOpen = open,
                 initialSettingsTab = initialTab,
-                isQuickCommandOpen = false,
                 isHomeControlBarOpen = false,
                 settingsPreviewLandscape = if (!open) null else it.settingsPreviewLandscape
             )
@@ -458,7 +445,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 isHomeControlBarOpen = false,
                 isEditMode = false,
                 isDrawerOpen = false,
-                isQuickCommandOpen = false,
                 isSettingsOpen = false,
                 isWidgetPickerOpen = false,
                 settingsPreviewLandscape = null,
@@ -506,10 +492,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
             eph.isSettingsOpen -> {
                 openSettings(false)
-                true
-            }
-            eph.isQuickCommandOpen -> {
-                _ephemeral.update { it.copy(isQuickCommandOpen = false) }
                 true
             }
             eph.isDrawerOpen -> {
@@ -638,17 +620,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         when (binding.action) {
             GestureActionType.NONE -> Unit
             GestureActionType.OPEN_DRAWER -> openDrawer(true)
-            GestureActionType.OPEN_QUICK_CMD -> openQuickCommand(true)
-            GestureActionType.OPEN_SETTINGS -> openSettings(true)
             GestureActionType.TOGGLE_EDIT -> setEditMode(!state.isEditMode)
             GestureActionType.OPEN_WIDGETS -> openWidgetPicker(true)
             GestureActionType.NEXT_PAGE -> jumpToPage(state.currentPage + 1)
             GestureActionType.PREV_PAGE -> jumpToPage(state.currentPage - 1)
             GestureActionType.FIRST_PAGE -> jumpToPage(0)
             GestureActionType.LAST_PAGE -> jumpToPage(state.prefs.pageCount - 1)
-            GestureActionType.OPEN_VAULT -> {
-                openDrawer(true)
-            }
+            GestureActionType.OPEN_VAULT -> openDrawer(true)
             GestureActionType.TOGGLE_NIGHT_OWL -> toggleNightOwlMode()
             GestureActionType.TOGGLE_FOCUS -> toggleFocusPerch()
             GestureActionType.TOGGLE_CLEAN -> toggleCleanCanvasMode()
@@ -656,9 +634,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             GestureActionType.TOGGLE_TORCH -> toggleFlashlight()
             GestureActionType.OPEN_NOTE -> openNoteEditor(true)
             GestureActionType.EXPAND_NOTIFICATIONS -> {
-                if (!appsManager.expandNotificationsShade()) {
-                    openQuickCommand(true)
-                }
+                appsManager.expandNotificationsShade()
             }
             GestureActionType.OPEN_DEVICE_SETTINGS -> openDeviceSettings(Settings.ACTION_SETTINGS)
             GestureActionType.LAUNCH_APP -> {
@@ -764,6 +740,89 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun reorderOrMovePlacedApp(
+        componentKey: String,
+        targetPage: Int,
+        targetIndexInPage: Int? = null
+    ) {
+        viewModelScope.launch {
+            val maxPage = (_uiState.value.prefs.pageCount - 1).coerceAtLeast(0)
+            val safePage = targetPage.coerceIn(0, maxPage)
+            val all = _uiState.value.prefs.placedApps.toMutableList()
+            val moving = all.firstOrNull { it.componentKey == componentKey }
+                ?: PlacedAppItem(componentKey = componentKey, pageIndex = safePage)
+
+            val withoutMoving = all.filterNot { it.componentKey == componentKey }
+            val onTargetPage = withoutMoving.filter { it.pageIndex == safePage }.toMutableList()
+            val otherPages = withoutMoving.filterNot { it.pageIndex == safePage }
+
+            val insertIdx = (targetIndexInPage ?: onTargetPage.size).coerceIn(0, onTargetPage.size)
+            onTargetPage.add(insertIdx, moving.copy(pageIndex = safePage))
+
+            repository.setPlacedApps(otherPages + onTargetPage)
+            if (_uiState.value.currentPage != safePage) {
+                jumpToPage(safePage)
+            }
+        }
+    }
+
+    fun mergeAppsIntoFolder(draggedKey: String, targetKey: String, pageIndex: Int) {
+        if (draggedKey == targetKey) return
+        viewModelScope.launch {
+            val state = _uiState.value
+            val safePage = pageIndex.coerceIn(0, (state.prefs.pageCount - 1).coerceAtLeast(0))
+            val updatedApps = state.prefs.placedApps.filterNot {
+                it.componentKey == draggedKey || it.componentKey == targetKey
+            }
+            val nextNumber = state.prefs.owlNests.size + 1
+            val autoName = getApplication<Application>().getString(
+                R.string.auto_folder_name_format,
+                nextNumber
+            )
+            val newNest = OwlNest(
+                id = UUID.randomUUID().toString(),
+                name = autoName,
+                appKeys = listOf(targetKey, draggedKey),
+                pageIndex = safePage
+            )
+            val updatedNests = state.prefs.owlNests + newNest
+            repository.setPlacedApps(updatedApps)
+            repository.setOwlNests(updatedNests)
+        }
+    }
+
+    fun dropAppIntoNest(draggedKey: String, nestId: String) {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val updatedApps = state.prefs.placedApps.filterNot { it.componentKey == draggedKey }
+            val updatedNests = state.prefs.owlNests.map { nest ->
+                if (nest.id == nestId) {
+                    nest.copy(appKeys = (nest.appKeys + draggedKey).distinct())
+                } else {
+                    nest
+                }
+            }
+            repository.setPlacedApps(updatedApps)
+            repository.setOwlNests(updatedNests)
+        }
+    }
+
+    fun reorderOrMoveNest(nestId: String, targetPage: Int, targetIndexInPage: Int? = null) {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val maxPage = (state.prefs.pageCount - 1).coerceAtLeast(0)
+            val safePage = targetPage.coerceIn(0, maxPage)
+            val all = state.prefs.owlNests
+            val moving = all.firstOrNull { it.id == nestId } ?: return@launch
+            val withoutMoving = all.filterNot { it.id == nestId }
+            val onTargetPage = withoutMoving.filter { it.pageIndex == safePage }.toMutableList()
+            val otherPages = withoutMoving.filterNot { it.pageIndex == safePage }
+            val insertIdx = (targetIndexInPage ?: onTargetPage.size).coerceIn(0, onTargetPage.size)
+            onTargetPage.add(insertIdx, moving.copy(pageIndex = safePage))
+            repository.setOwlNests(otherPages + onTargetPage)
+        }
+    }
+
     fun togglePinDock(app: AppInfo) {
         viewModelScope.launch {
             val current = _uiState.value.prefs.dockAppKeys.toMutableList()
@@ -842,18 +901,66 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun removeAppFromNest(nestId: String, appKey: String) {
         viewModelScope.launch {
-            val nests = _uiState.value.prefs.owlNests.map { nest ->
-                if (nest.id == nestId) {
-                    val updated = nest.copy(appKeys = nest.appKeys.filterNot { it == appKey })
-                    if (_ephemeral.value.selectedNestToOpen?.id == nestId) {
-                        _ephemeral.update { it.copy(selectedNestToOpen = updated) }
-                    }
-                    updated
-                } else {
-                    nest
+            val currentNests = _uiState.value.prefs.owlNests
+            val target = currentNests.firstOrNull { it.id == nestId } ?: return@launch
+            val remaining = target.appKeys.filterNot { it == appKey }
+            if (remaining.isEmpty()) {
+                val nests = currentNests.filterNot { it.id == nestId }
+                repository.setOwlNests(nests)
+                if (_ephemeral.value.selectedNestToOpen?.id == nestId) {
+                    _ephemeral.update { it.copy(selectedNestToOpen = null) }
+                }
+            } else {
+                val updated = target.copy(appKeys = remaining)
+                val nests = currentNests.map { if (it.id == nestId) updated else it }
+                repository.setOwlNests(nests)
+                if (_ephemeral.value.selectedNestToOpen?.id == nestId) {
+                    _ephemeral.update { it.copy(selectedNestToOpen = updated) }
                 }
             }
+        }
+    }
+
+    fun reorderAppInNest(nestId: String, appKey: String, targetIndex: Int) {
+        viewModelScope.launch {
+            val currentNests = _uiState.value.prefs.owlNests
+            val target = currentNests.firstOrNull { it.id == nestId } ?: return@launch
+            val mutable = target.appKeys.toMutableList()
+            val oldIdx = mutable.indexOf(appKey)
+            if (oldIdx < 0) return@launch
+            val moved = mutable.removeAt(oldIdx)
+            val safeTarget = targetIndex.coerceIn(0, mutable.size)
+            mutable.add(safeTarget, moved)
+            val updated = target.copy(appKeys = mutable)
+            val nests = currentNests.map { if (it.id == nestId) updated else it }
             repository.setOwlNests(nests)
+            if (_ephemeral.value.selectedNestToOpen?.id == nestId) {
+                _ephemeral.update { it.copy(selectedNestToOpen = updated) }
+            }
+        }
+    }
+
+    fun extractAppFromNestToHome(nestId: String, appKey: String) {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val currentNests = state.prefs.owlNests
+            val target = currentNests.firstOrNull { it.id == nestId } ?: return@launch
+            val remaining = target.appKeys.filterNot { it == appKey }
+            val updatedNests = if (remaining.isEmpty()) {
+                currentNests.filterNot { it.id == nestId }
+            } else {
+                currentNests.map {
+                    if (it.id == nestId) it.copy(appKeys = remaining) else it
+                }
+            }
+
+            val page = state.currentPage.coerceIn(0, (state.prefs.pageCount - 1).coerceAtLeast(0))
+            val currentApps = state.prefs.placedApps.filterNot { it.componentKey == appKey }
+            val updatedApps = currentApps + PlacedAppItem(componentKey = appKey, pageIndex = page)
+
+            repository.setOwlNests(updatedNests)
+            repository.setPlacedApps(updatedApps)
+            _ephemeral.update { it.copy(selectedNestToOpen = null) }
         }
     }
 
@@ -870,6 +977,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 _ephemeral.update {
                     it.copy(itemCustomizationTarget = ItemCustomizationTarget.NestTarget(updated))
                 }
+            }
+            if (_ephemeral.value.selectedNestToOpen?.id == updated.id) {
+                _ephemeral.update { it.copy(selectedNestToOpen = updated) }
             }
         }
     }
