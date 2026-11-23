@@ -40,7 +40,21 @@
     <string name="home_menu_gestures">الإيماءات (24)</string>
     <string name="home_menu_add_page">إضافة طبقة</string>
     <string name="home_menu_remove_page">حذف الطبقة</string>
+    <string name="home_menu_recents">اللقطات</string>
     <string name="page_indicator_format">الطبقة %1$d من %2$d</string>
+
+    <!-- Recent Apps (Snapshots / Overview) -->
+    <string name="recents_title">اللقطات</string>
+    <string name="recents_empty_title">لا توجد لقطات حديثة بعد</string>
+    <string name="recents_empty_subtitle">افتح أي تطبيق من الشاشة الرئيسية أو القائمة وسيظهر هنا كبطاقة للتنقل السريع بين تطبيقاتك.</string>
+    <string name="recents_clear_all">مسح الكل</string>
+    <string name="recents_tap_to_resume">اضغط للمتابعة</string>
+    <string name="recents_swipe_dismiss_hint">اسحب البطاقة للأعلى لإغلاقها • اضغط للفتح</string>
+    <string name="recents_count_format">%1$d تطبيقات</string>
+    <string name="recents_just_now">الآن</string>
+    <string name="recents_minutes_ago">منذ %1$d د</string>
+    <string name="recents_hours_ago">منذ %1$d س</string>
+    <string name="recents_desc">اللقطات (التطبيقات الأخيرة)</string>
 
     <!-- Default Launcher Banner -->
     <string name="set_default_launcher_title">تثبيت لانشر البومة كشاشة رئيسية</string>
@@ -204,6 +218,10 @@
     <string name="dim_label">تعتيم الخلفية: %1$d%%</string>
     <string name="preview_portrait">العامودي</string>
     <string name="preview_landscape">الأفقي</string>
+    <string name="sync_system_wallpaper_toggle">مزامنة الخلفية مع النظام (تظهر في اللقطات وفتح القفل)</string>
+    <string name="apply_system_wallpaper_btn">تطبيق الخلفية على شاشة النظام واللقطات</string>
+    <string name="system_wallpaper_applied_msg">تمت مزامنة خلفية البومة مع النظام وستظهر في اللقطات وفتح الهاتف</string>
+    <string name="system_wallpaper_failed_msg">تعذّر تحديث خلفية النظام على هذا الجهاز</string>
 
     <string name="icon_shape_label">شكل إطار الأيقونات (يحافظ على صورة التطبيق الأصلية)</string>
     <string name="shape_original">الأصلي</string>
@@ -216,6 +234,7 @@
     <string name="icon_frame_backdrop">إطار زجاجي خفيف</string>
     <string name="show_app_labels">إظهار أسماء التطبيقات</string>
     <string name="show_dock_toggle">إظهار شريط التطبيقات</string>
+    <string name="show_recents_dock_toggle">إظهار زر اللقطات في الشريط</string>
     <string name="portrait_columns_label">أعمدة الوضع العامودي: %1$d</string>
     <string name="landscape_columns_label">أعمدة الوضع الأفقي: %1$d</string>
 
@@ -267,6 +286,7 @@
     <!-- Gesture Actions -->
     <string name="ga_none">معطّل</string>
     <string name="ga_open_drawer">فتح قائمة كل التطبيقات</string>
+    <string name="ga_open_recents">فتح اللقطات (التطبيقات الأخيرة)</string>
     <string name="ga_toggle_edit">تفعيل/إلغاء القلم والتعديل</string>
     <string name="ga_open_widgets">فتح قائمة الودجات</string>
     <string name="ga_next_page">الانتقال للطبقة التالية</string>

@@ -25,6 +25,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -61,6 +62,74 @@ import com.example.model.PlacedAppItem
 import kotlinx.coroutines.delay
 import kotlin.math.hypot
 
+sealed interface HomeGridEntry {
+    data class NestEntry(val nest: OwlNest) : HomeGridEntry
+    data class AppEntry(val placed: PlacedAppItem, val app: AppInfo) : HomeGridEntry
+}
+
+data class HomeGridAllocation(
+    val slotMap: Map<Int, HomeGridEntry>,
+    val slotIndexByAppKey: Map<String, Int>,
+    val slotIndexByNestId: Map<String, Int>,
+    val totalRows: Int
+)
+
+fun allocateHomeGridSlots(
+    smallNests: List<OwlNest>,
+    pageApps: List<Pair<PlacedAppItem, AppInfo>>,
+    columns: Int,
+    minRows: Int,
+    isLandscape: Boolean
+): HomeGridAllocation {
+    val occupied = linkedMapOf<Int, HomeGridEntry>()
+    val nestSlotById = mutableMapOf<String, Int>()
+    val appSlotByKey = mutableMapOf<String, Int>()
+    val unassigned = mutableListOf<Pair<HomeGridEntry, (Int) -> Unit>>()
+
+    smallNests.forEach { nest ->
+        val preferred = if (isLandscape) nest.landscapeSlotIndex else nest.slotIndex
+        if (preferred >= 0 && !occupied.containsKey(preferred)) {
+            occupied[preferred] = HomeGridEntry.NestEntry(nest)
+            nestSlotById[nest.id] = preferred
+        } else {
+            unassigned.add(HomeGridEntry.NestEntry(nest) to { slot -> nestSlotById[nest.id] = slot })
+        }
+    }
+
+    pageApps.forEach { (placed, app) ->
+        val preferred = if (isLandscape) placed.landscapeSlotIndex else placed.slotIndex
+        if (preferred >= 0 && !occupied.containsKey(preferred)) {
+            occupied[preferred] = HomeGridEntry.AppEntry(placed, app)
+            appSlotByKey[app.componentKey] = preferred
+        } else {
+            unassigned.add(
+                HomeGridEntry.AppEntry(placed, app) to { slot -> appSlotByKey[app.componentKey] = slot }
+            )
+        }
+    }
+
+    var cursor = 0
+    for ((entry, onClaimed) in unassigned) {
+        while (occupied.containsKey(cursor)) {
+            cursor++
+        }
+        occupied[cursor] = entry
+        onClaimed(cursor)
+        cursor++
+    }
+
+    val maxSlot = occupied.keys.maxOrNull() ?: -1
+    val requiredRows = if (maxSlot < 0) 0 else (maxSlot / columns) + 1
+    val totalRows = maxOf(minRows, requiredRows)
+
+    return HomeGridAllocation(
+        slotMap = occupied,
+        slotIndexByAppKey = appSlotByKey,
+        slotIndexByNestId = nestSlotById,
+        totalRows = totalRows
+    )
+}
+
 sealed interface HomeDragPayload {
     data class App(
         val app: AppInfo,
@@ -84,8 +153,8 @@ sealed interface HomeDragPayload {
 sealed interface HomeDropTarget {
     data class MergeAppsIntoFolder(val targetAppKey: String) : HomeDropTarget
     data class AddToExistingNest(val targetNestId: String) : HomeDropTarget
-    data class ReorderAppSlot(val targetPage: Int, val targetIndex: Int) : HomeDropTarget
-    data class ReorderNestSlot(val targetPage: Int, val targetIndex: Int) : HomeDropTarget
+    data class MoveAppToSlot(val targetPage: Int, val targetSlotIndex: Int) : HomeDropTarget
+    data class MoveNestToSlot(val targetPage: Int, val targetSlotIndex: Int) : HomeDropTarget
 }
 
 data class RegisteredAppSlot(
@@ -99,6 +168,12 @@ data class RegisteredNestSlot(
     val nestId: String,
     val pageIndex: Int,
     val indexInPage: Int,
+    val boundsInRoot: Rect
+)
+
+data class RegisteredEmptySlot(
+    val pageIndex: Int,
+    val slotIndex: Int,
     val boundsInRoot: Rect
 )
 
@@ -122,6 +197,7 @@ class HomeDragController {
 
     val appSlots = mutableStateMapOf<String, RegisteredAppSlot>()
     val nestSlots = mutableStateMapOf<String, RegisteredNestSlot>()
+    val emptySlots = mutableStateMapOf<String, RegisteredEmptySlot>()
 
     val isDragging: Boolean get() = activeDrag != null
 
@@ -149,6 +225,18 @@ class HomeDragController {
             nestId = nestId,
             pageIndex = pageIndex,
             indexInPage = indexInPage,
+            boundsInRoot = bounds
+        )
+    }
+
+    fun registerEmptySlot(
+        pageIndex: Int,
+        slotIndex: Int,
+        bounds: Rect
+    ) {
+        emptySlots["${pageIndex}_$slotIndex"] = RegisteredEmptySlot(
+            pageIndex = pageIndex,
+            slotIndex = slotIndex,
             boundsInRoot = bounds
         )
     }
@@ -182,6 +270,53 @@ class HomeDragController {
         val finished = activeDrag
         activeDrag = null
         return finished
+    }
+
+    private fun findNearestGridSlotIndex(
+        currentPage: Int,
+        dragCenterInRoot: Offset
+    ): Int {
+        var bestSlot = 0
+        var bestDist = Double.MAX_VALUE
+
+        emptySlots.values.forEach { slot ->
+            if (slot.pageIndex == currentPage) {
+                val d = hypot(
+                    (dragCenterInRoot.x - slot.boundsInRoot.center.x).toDouble(),
+                    (dragCenterInRoot.y - slot.boundsInRoot.center.y).toDouble()
+                )
+                if (d < bestDist) {
+                    bestDist = d
+                    bestSlot = slot.slotIndex
+                }
+            }
+        }
+        appSlots.values.forEach { slot ->
+            if (slot.pageIndex == currentPage && slot.indexInPage >= 0) {
+                val d = hypot(
+                    (dragCenterInRoot.x - slot.boundsInRoot.center.x).toDouble(),
+                    (dragCenterInRoot.y - slot.boundsInRoot.center.y).toDouble()
+                )
+                if (d < bestDist) {
+                    bestDist = d
+                    bestSlot = slot.indexInPage
+                }
+            }
+        }
+        nestSlots.values.forEach { slot ->
+            if (slot.pageIndex == currentPage && slot.indexInPage >= 0) {
+                val d = hypot(
+                    (dragCenterInRoot.x - slot.boundsInRoot.center.x).toDouble(),
+                    (dragCenterInRoot.y - slot.boundsInRoot.center.y).toDouble()
+                )
+                if (d < bestDist) {
+                    bestDist = d
+                    bestSlot = slot.indexInPage
+                }
+            }
+        }
+
+        return bestSlot
     }
 
     fun resolveDropTarget(
@@ -224,33 +359,62 @@ class HomeDragController {
                     return HomeDropTarget.MergeAppsIntoFolder(hitApp.componentKey)
                 }
 
-                // 3) Otherwise find nearest grid slot on currentPage
-                val nearestSlot = pageApps.minByOrNull {
-                    hypot(
-                        (dragCenterInRoot.x - it.boundsInRoot.center.x).toDouble(),
-                        (dragCenterInRoot.y - it.boundsInRoot.center.y).toDouble()
-                    )
-                }
-                val targetIndex = if (nearestSlot == null) {
-                    0
-                } else {
-                    nearestSlot.indexInPage
-                }
-                HomeDropTarget.ReorderAppSlot(currentPage, targetIndex)
+                // 3) Otherwise snap freely to the nearest grid slot (empty or occupied) on currentPage
+                val targetSlot = findNearestGridSlotIndex(currentPage, dragCenterInRoot)
+                HomeDropTarget.MoveAppToSlot(currentPage, targetSlot)
             }
 
             is HomeDragPayload.Nest -> {
-                val pageNests = nestSlots.values.filter { it.pageIndex == currentPage }
-                val nearest = pageNests.minByOrNull {
-                    hypot(
-                        (dragCenterInRoot.x - it.boundsInRoot.center.x).toDouble(),
-                        (dragCenterInRoot.y - it.boundsInRoot.center.y).toDouble()
-                    )
-                }
-                HomeDropTarget.ReorderNestSlot(currentPage, nearest?.indexInPage ?: 0)
+                val targetSlot = findNearestGridSlotIndex(currentPage, dragCenterInRoot)
+                HomeDropTarget.MoveNestToSlot(currentPage, targetSlot)
             }
         }
     }
+}
+
+@Composable
+fun EmptyHomeGridSlot(
+    pageIndex: Int,
+    slotIndex: Int,
+    dragController: HomeDragController,
+    isDropTargetHighlighted: Boolean,
+    modifier: Modifier = Modifier
+) {
+    DisposableEffect(dragController, pageIndex, slotIndex) {
+        onDispose {
+            dragController.emptySlots.remove("${pageIndex}_$slotIndex")
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coords ->
+                dragController.registerEmptySlot(pageIndex, slotIndex, coords.boundsInRoot())
+            }
+            .then(
+                when {
+                    isDropTargetHighlighted -> Modifier
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
+                        .border(
+                            width = 1.5.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
+                            shape = RoundedCornerShape(18.dp)
+                        )
+                    dragController.isDragging -> Modifier
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(
+                            width = 0.8.dp,
+                            color = Color.White.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                    else -> Modifier
+                }
+            )
+    )
 }
 
 @Composable

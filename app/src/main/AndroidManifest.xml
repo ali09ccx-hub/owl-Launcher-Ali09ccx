@@ -16,6 +16,9 @@
     <!-- Required for deleting apps via user confirmation intent on Android 9+ -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
+    <!-- Sync Owl Launcher wallpaper with Android System Wallpaper so Recents & Unlock show Owl background -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -28,9 +31,11 @@
         <activity
             android:name=".MainActivity"
             android:clearTaskOnLaunch="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|navigation|uiMode"
             android:exported="true"
             android:label="@string/app_name"
             android:launchMode="singleTask"
+            android:resumeWhilePausing="true"
             android:stateNotNeeded="true"
             android:theme="@style/Theme.OwlLauncher"
             android:windowSoftInputMode="adjustNothing">

@@ -111,8 +111,10 @@ fun SettingsStudioSheet(
     onPickLandscapeWallpaper: (Uri) -> Unit,
     onResetWallpaper: (Boolean) -> Unit,
     onUpdateWallpaperConfig: (Boolean, WallpaperConfig) -> Unit,
+    onSetSyncSystemWallpaper: (Boolean) -> Unit,
+    onApplySystemWallpaperNow: (Boolean) -> Unit,
     onUpdateStormConfig: (StormMode?, Float?, Boolean?, Boolean?) -> Unit,
-    onUpdateLayerConfig: (LayerTransitionStyle?, Boolean?) -> Unit,
+    onUpdateLayerConfig: (LayerTransitionStyle?, Boolean?, Boolean?) -> Unit,
     onAddPage: () -> Unit,
     onRemovePage: () -> Unit,
     onUpdateIconStyle: (IconShapeStyle?, Int?, Boolean?, Boolean?, Int?, Int?) -> Unit,
@@ -336,7 +338,7 @@ fun SettingsStudioSheet(
                                 ).forEach { (style, resId) ->
                                     FilterChip(
                                         selected = prefs.layerTransition == style,
-                                        onClick = { onUpdateLayerConfig(style, null) },
+                                        onClick = { onUpdateLayerConfig(style, null, null) },
                                         label = { Text(stringResource(resId)) }
                                     )
                                 }
@@ -346,7 +348,12 @@ fun SettingsStudioSheet(
                             StudioSwitchRow(
                                 label = stringResource(R.string.show_dock_toggle),
                                 checked = prefs.showDock,
-                                onCheckedChange = { onUpdateLayerConfig(null, it) }
+                                onCheckedChange = { onUpdateLayerConfig(null, it, null) }
+                            )
+                            StudioSwitchRow(
+                                label = stringResource(R.string.show_recents_dock_toggle),
+                                checked = prefs.showRecentsInDock,
+                                onCheckedChange = { onUpdateLayerConfig(null, null, it) }
                             )
                         }
                     }
@@ -703,6 +710,28 @@ fun SettingsStudioSheet(
                                     )
                                 }
                             )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+                            StudioSwitchRow(
+                                label = stringResource(R.string.sync_system_wallpaper_toggle),
+                                checked = prefs.syncSystemWallpaper,
+                                onCheckedChange = onSetSyncSystemWallpaper
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = { onApplySystemWallpaperNow(editingLandscapeWallpaper) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("apply_system_wallpaper_btn")
+                            ) {
+                                Icon(
+                                    Icons.Filled.Image,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(stringResource(R.string.apply_system_wallpaper_btn))
+                            }
                         }
                     }
                 }
@@ -1066,6 +1095,7 @@ private fun gestureLabelRes(id: GestureId): Int = when (id) {
 private fun gestureActionLabelRes(action: GestureActionType): Int = when (action) {
     GestureActionType.NONE -> R.string.ga_none
     GestureActionType.OPEN_DRAWER -> R.string.ga_open_drawer
+    GestureActionType.OPEN_RECENTS -> R.string.ga_open_recents
     GestureActionType.TOGGLE_EDIT -> R.string.ga_toggle_edit
     GestureActionType.OPEN_WIDGETS -> R.string.ga_open_widgets
     GestureActionType.NEXT_PAGE -> R.string.ga_next_page

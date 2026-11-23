@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.rounded.ViewCarousel
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,6 +78,7 @@ import com.example.ui.theme.MidnightDeep
 fun AppDrawerSheet(
     uiState: LauncherUiState,
     onDismiss: () -> Unit,
+    onOpenRecents: () -> Unit,
     onLaunchApp: (AppInfo) -> Unit,
     onShowAppMenu: (AppInfo) -> Unit,
     onVaultUnlocked: (Boolean) -> Unit,
@@ -196,6 +198,23 @@ fun AppDrawerSheet(
                             .weight(1f)
                             .testTag("drawer_search_input")
                     )
+
+                    Surface(
+                        onClick = onOpenRecents,
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("drawer_recents_btn")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.ViewCarousel,
+                                contentDescription = stringResource(R.string.recents_desc),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
 
                     Surface(
                         onClick = onDismiss,

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.rounded.ViewCarousel
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -43,7 +44,7 @@ import com.example.R
 
 /**
  * Floating Home Screen control bar revealed ONLY on long-press of the Home Screen,
- * giving access to the Edit Pencil mode, Settings Studio, Widgets/GIFs, Folders, Gestures, and Layers.
+ * giving access to the Edit Pencil mode, Settings Studio, Widgets/GIFs, Folders, Recents, Gestures, and Layers.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -55,6 +56,7 @@ fun HomeLongPressControlBar(
     onOpenSettings: () -> Unit,
     onOpenWidgets: () -> Unit,
     onCreateFolder: () -> Unit,
+    onOpenRecents: () -> Unit,
     onOpenGestures: () -> Unit,
     onAddPage: () -> Unit,
     onRemovePage: () -> Unit,
@@ -130,6 +132,13 @@ fun HomeLongPressControlBar(
                     highlighted = false,
                     onClick = onOpenSettings,
                     testTag = "home_menu_settings_btn"
+                )
+                ControlBarTile(
+                    icon = Icons.Rounded.ViewCarousel,
+                    label = stringResource(R.string.home_menu_recents),
+                    highlighted = false,
+                    onClick = onOpenRecents,
+                    testTag = "home_menu_recents_btn"
                 )
                 ControlBarTile(
                     icon = Icons.Filled.Widgets,

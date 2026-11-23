@@ -28,6 +28,9 @@ import com.example.model.AppCategory
 import com.example.model.AppInfo
 import com.example.model.DeviceStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
@@ -35,7 +38,12 @@ class InstalledAppsManager(private val context: Context) {
 
     private val iconCache = ConcurrentHashMap<String, ImageBitmap>()
 
-    suspend fun loadInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
+    suspend fun loadInstalledApps(): List<AppInfo> = loadInstalledAppsTwoPhase(emptySet()) {}
+
+    suspend fun loadInstalledAppsTwoPhase(
+        priorityKeys: Set<String>,
+        onPriorityLoaded: suspend (List<AppInfo>) -> Unit
+    ): List<AppInfo> = withContext(Dispatchers.IO) {
         val pm = context.packageManager
         val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
@@ -47,42 +55,68 @@ class InstalledAppsManager(private val context: Context) {
             @Suppress("DEPRECATION")
             pm.queryIntentActivities(mainIntent, 0)
         }
-
-        resolveInfos
             .filter { it.activityInfo.packageName != context.packageName }
-            .map { info ->
-                val pkg = info.activityInfo.packageName
-                val cls = info.activityInfo.name
-                val key = "$pkg/$cls"
-                val label = info.loadLabel(pm)?.toString()?.trim().orEmpty().ifEmpty { pkg }
-                val iconBitmap = iconCache[key] ?: run {
-                    val drawable = info.loadIcon(pm)
-                    drawableToUnalteredBitmap(drawable)?.also { iconCache[key] = it }
-                }
-                val appInfo = info.activityInfo.applicationInfo
-                val category = mapCategory(appInfo, pkg, label)
-                val installTime = try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        pm.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0L)).firstInstallTime
-                    } else {
-                        @Suppress("DEPRECATION")
-                        pm.getPackageInfo(pkg, 0).firstInstallTime
-                    }
-                } catch (_: Exception) {
-                    0L
-                }
 
-                AppInfo(
-                    packageName = pkg,
-                    activityName = cls,
-                    label = label,
-                    category = category,
-                    icon = iconBitmap,
-                    installTime = installTime
-                )
+        val (priorityInfos, otherInfos) = if (priorityKeys.isNotEmpty()) {
+            resolveInfos.partition { info ->
+                "${info.activityInfo.packageName}/${info.activityInfo.name}" in priorityKeys
             }
+        } else {
+            emptyList<ResolveInfo>() to resolveInfos
+        }
+
+        val priorityApps = priorityInfos.map { buildAppInfo(pm, it) }
+        if (priorityApps.isNotEmpty()) {
+            onPriorityLoaded(
+                priorityApps
+                    .distinctBy { it.componentKey }
+                    .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
+            )
+        }
+
+        val remainingApps = coroutineScope {
+            otherInfos.chunked(16).map { chunk ->
+                async(Dispatchers.IO) {
+                    chunk.map { buildAppInfo(pm, it) }
+                }
+            }.awaitAll().flatten()
+        }
+
+        (priorityApps + remainingApps)
             .distinctBy { it.componentKey }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
+    }
+
+    private fun buildAppInfo(pm: PackageManager, info: ResolveInfo): AppInfo {
+        val pkg = info.activityInfo.packageName
+        val cls = info.activityInfo.name
+        val key = "$pkg/$cls"
+        val label = info.loadLabel(pm)?.toString()?.trim().orEmpty().ifEmpty { pkg }
+        val iconBitmap = iconCache[key] ?: run {
+            val drawable = info.loadIcon(pm)
+            drawableToUnalteredBitmap(drawable)?.also { iconCache[key] = it }
+        }
+        val appInfo = info.activityInfo.applicationInfo
+        val category = mapCategory(appInfo, pkg, label)
+        val installTime = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0L)).firstInstallTime
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageInfo(pkg, 0).firstInstallTime
+            }
+        } catch (_: Exception) {
+            0L
+        }
+
+        return AppInfo(
+            packageName = pkg,
+            activityName = cls,
+            label = label,
+            category = category,
+            icon = iconBitmap,
+            installTime = installTime
+        )
     }
 
     fun clearIconCacheForPackage(packageName: String) {
@@ -291,11 +325,11 @@ class InstalledAppsManager(private val context: Context) {
                     return bmp.asImageBitmap()
                 }
             }
-            val size = 192
+            val size = 144
             val width = drawable.intrinsicWidth.takeIf { it > 0 }?.coerceAtMost(size) ?: size
             val height = drawable.intrinsicHeight.takeIf { it > 0 }?.coerceAtMost(size) ?: size
-            val targetW = maxOf(width, 144)
-            val targetH = maxOf(height, 144)
+            val targetW = maxOf(width, 128)
+            val targetH = maxOf(height, 128)
             val bitmap = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             drawable.setBounds(0, 0, canvas.width, canvas.height)

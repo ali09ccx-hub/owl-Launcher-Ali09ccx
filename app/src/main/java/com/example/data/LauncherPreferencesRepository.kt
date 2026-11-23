@@ -25,6 +25,7 @@ import com.example.model.OwlNest
 import com.example.model.PlacedAppItem
 import com.example.model.PlacedWidget
 import com.example.model.PlacedWidgetKind
+import com.example.model.RecentAppEntry
 import com.example.model.StormMode
 import com.example.model.WallpaperConfig
 import com.example.model.WallpaperScaleMode
@@ -68,6 +69,9 @@ class LauncherPreferencesRepository(private val context: Context) {
         val LAYER_TRANSITION = stringPreferencesKey("layer_transition")
         val PAGE_COUNT = intPreferencesKey("page_count")
         val SHOW_DOCK = booleanPreferencesKey("show_dock")
+        val SHOW_RECENTS_IN_DOCK = booleanPreferencesKey("show_recents_in_dock")
+        val SYNC_SYSTEM_WALLPAPER = booleanPreferencesKey("sync_system_wallpaper")
+        val LAST_SYNCED_WALLPAPER_SIG = stringPreferencesKey("last_synced_wallpaper_sig")
 
         val ICON_SHAPE = stringPreferencesKey("icon_shape")
         val ICON_SIZE_DP = intPreferencesKey("icon_size_dp")
@@ -95,6 +99,7 @@ class LauncherPreferencesRepository(private val context: Context) {
         val OWL_NESTS_JSON = stringPreferencesKey("owl_nests_json")
         val PLACED_WIDGETS_JSON = stringPreferencesKey("placed_widgets_json")
         val WIDGETS_INITIALIZED = booleanPreferencesKey("widgets_initialized")
+        val RECENT_APPS_JSON = stringPreferencesKey("recent_apps_v1_json")
         val GESTURES_JSON = stringPreferencesKey("gestures_v1_json")
         val CLEAN_HOME_V2_MIGRATED = booleanPreferencesKey("clean_home_v2_migrated")
     }
@@ -144,6 +149,8 @@ class LauncherPreferencesRepository(private val context: Context) {
             layerTransition = prefs[Keys.LAYER_TRANSITION].toEnumOrDefault(LayerTransitionStyle.DEPTH_PARALLAX),
             pageCount = (prefs[Keys.PAGE_COUNT] ?: 2).coerceIn(1, 8),
             showDock = prefs[Keys.SHOW_DOCK] ?: true,
+            showRecentsInDock = prefs[Keys.SHOW_RECENTS_IN_DOCK] ?: false,
+            syncSystemWallpaper = prefs[Keys.SYNC_SYSTEM_WALLPAPER] ?: true,
             iconShape = prefs[Keys.ICON_SHAPE].toEnumOrDefault(IconShapeStyle.ORIGINAL),
             iconSizeDp = (prefs[Keys.ICON_SIZE_DP] ?: 54).coerceIn(40, 72),
             showIconFrameBackdrop = prefs[Keys.ICON_FRAME_BACKDROP] ?: false,
@@ -165,12 +172,29 @@ class LauncherPreferencesRepository(private val context: Context) {
             focusEssentialAppKeys = prefs[Keys.FOCUS_ESSENTIAL_APPS] ?: emptySet(),
             owlNests = decodeNests(prefs[Keys.OWL_NESTS_JSON]),
             placedWidgets = placedWidgets,
+            recentApps = decodeRecentApps(prefs[Keys.RECENT_APPS_JSON]),
             gestureBindings = decodeGestures(prefs[Keys.GESTURES_JSON])
         )
     }
 
     val dockInitializedFlow: Flow<Boolean> = context.launcherDataStore.data.map { prefs ->
         prefs[Keys.DOCK_INITIALIZED] ?: false
+    }
+
+    val lastSyncedWallpaperSignatureFlow: Flow<String?> = context.launcherDataStore.data.map { prefs ->
+        prefs[Keys.LAST_SYNCED_WALLPAPER_SIG]
+    }
+
+    suspend fun setSyncSystemWallpaper(enabled: Boolean) {
+        context.launcherDataStore.edit { prefs ->
+            prefs[Keys.SYNC_SYSTEM_WALLPAPER] = enabled
+        }
+    }
+
+    suspend fun setLastSyncedWallpaperSignature(signature: String) {
+        context.launcherDataStore.edit { prefs ->
+            prefs[Keys.LAST_SYNCED_WALLPAPER_SIG] = signature
+        }
     }
 
     suspend fun ensureCleanHomeDefaultsOnce() {
@@ -287,12 +311,14 @@ class LauncherPreferencesRepository(private val context: Context) {
     suspend fun updateLayerConfig(
         pageCount: Int? = null,
         layerTransition: LayerTransitionStyle? = null,
-        showDock: Boolean? = null
+        showDock: Boolean? = null,
+        showRecentsInDock: Boolean? = null
     ) {
         context.launcherDataStore.edit { prefs ->
             pageCount?.let { prefs[Keys.PAGE_COUNT] = it.coerceIn(1, 8) }
             layerTransition?.let { prefs[Keys.LAYER_TRANSITION] = it.name }
             showDock?.let { prefs[Keys.SHOW_DOCK] = it }
+            showRecentsInDock?.let { prefs[Keys.SHOW_RECENTS_IN_DOCK] = it }
         }
     }
 
@@ -382,6 +408,12 @@ class LauncherPreferencesRepository(private val context: Context) {
         }
     }
 
+    suspend fun setRecentApps(entries: List<RecentAppEntry>) {
+        context.launcherDataStore.edit { prefs ->
+            prefs[Keys.RECENT_APPS_JSON] = encodeRecentApps(entries.take(16))
+        }
+    }
+
     private fun encodeStringList(items: List<String>): String {
         val arr = JSONArray()
         items.forEach { arr.put(it) }
@@ -411,6 +443,8 @@ class LauncherPreferencesRepository(private val context: Context) {
                 put("page", item.pageIndex)
                 put("scale", item.scale.toDouble())
                 put("shape", item.shapeOverride?.name ?: "")
+                put("slot", item.slotIndex)
+                put("lSlot", item.landscapeSlotIndex)
             }
             arr.put(obj)
         }
@@ -435,7 +469,9 @@ class LauncherPreferencesRepository(private val context: Context) {
                             componentKey = key,
                             pageIndex = obj.optInt("page", 0).coerceAtLeast(0),
                             scale = obj.optDouble("scale", 1.0).toFloat().coerceIn(0.75f, 1.6f),
-                            shapeOverride = shape
+                            shapeOverride = shape,
+                            slotIndex = obj.optInt("slot", -1),
+                            landscapeSlotIndex = obj.optInt("lSlot", -1)
                         )
                     )
                 }
@@ -455,6 +491,8 @@ class LauncherPreferencesRepository(private val context: Context) {
                 put("size", nest.folderSize.name)
                 put("shape", nest.shapeOverride?.name ?: "")
                 put("gif", nest.gifPath ?: "")
+                put("slot", nest.slotIndex)
+                put("lSlot", nest.landscapeSlotIndex)
                 val apps = JSONArray()
                 nest.appKeys.forEach { apps.put(it) }
                 put("apps", apps)
@@ -491,7 +529,43 @@ class LauncherPreferencesRepository(private val context: Context) {
                             pageIndex = obj.optInt("page", 0).coerceAtLeast(0),
                             folderSize = obj.optString("size").toEnumOrDefault(FolderSizeMode.SIZE_1X1),
                             shapeOverride = shape,
-                            gifPath = gif
+                            gifPath = gif,
+                            slotIndex = obj.optInt("slot", -1),
+                            landscapeSlotIndex = obj.optInt("lSlot", -1)
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun encodeRecentApps(entries: List<RecentAppEntry>): String {
+        val arr = JSONArray()
+        entries.forEach { entry ->
+            val obj = JSONObject().apply {
+                put("key", entry.componentKey)
+                put("ts", entry.lastOpenedAt)
+            }
+            arr.put(obj)
+        }
+        return arr.toString()
+    }
+
+    private fun decodeRecentApps(raw: String?): List<RecentAppEntry> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    val obj = arr.optJSONObject(i) ?: continue
+                    val key = obj.optString("key")
+                    if (key.isBlank()) continue
+                    add(
+                        RecentAppEntry(
+                            componentKey = key,
+                            lastOpenedAt = obj.optLong("ts", 0L)
                         )
                     )
                 }

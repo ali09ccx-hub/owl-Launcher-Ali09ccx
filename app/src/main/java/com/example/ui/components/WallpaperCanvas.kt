@@ -30,6 +30,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.R
@@ -65,8 +68,12 @@ fun WallpaperCanvas(
     lightningEnabled: Boolean = true,
     stormFogEnabled: Boolean = true,
     pageParallaxFraction: Float = 0f,
+    isPaused: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val stormActive = stormMode != StormMode.OFF && !isPaused && lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
+
     val activeConfig = if (isLandscape) landscapeConfig else portraitConfig
     val dimOverlayColor by animateColorAsState(
         targetValue = if (nightOwlMode) {
@@ -74,14 +81,13 @@ fun WallpaperCanvas(
         } else {
             MidnightDeep.copy(alpha = activeConfig.dimAlpha)
         },
-        animationSpec = tween(400),
+        animationSpec = tween(250),
         label = "wallpaper_dim"
     )
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(MidnightDeep)
             .clipToBounds()
     ) {
         val density = LocalDensity.current
@@ -90,7 +96,7 @@ fun WallpaperCanvas(
 
         Crossfade(
             targetState = isLandscape,
-            animationSpec = tween(420),
+            animationSpec = tween(180),
             label = "orientation_wallpaper_crossfade"
         ) { landscapeMode ->
             val cfg = if (landscapeMode) landscapeConfig else portraitConfig
@@ -111,11 +117,14 @@ fun WallpaperCanvas(
 
             val customFile = cfg.customFilePath?.let { File(it) }?.takeIf { it.exists() }
             if (customFile != null) {
+                val targetW = widthPx.toInt().coerceIn(720, 1440)
+                val targetH = heightPx.toInt().coerceIn(720, 2560)
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(customFile)
+                        .size(targetW, targetH)
                         .setParameter("v", cfg.version, memoryCacheKey = null)
-                        .crossfade(true)
+                        .crossfade(false)
                         .build(),
                     contentDescription = null,
                     contentScale = contentScale,
@@ -161,7 +170,8 @@ fun WallpaperCanvas(
                 rainDensity = rainDensity,
                 lightningEnabled = lightningEnabled,
                 stormFogEnabled = stormFogEnabled,
-                pageParallaxFraction = pageParallaxFraction
+                pageParallaxFraction = pageParallaxFraction,
+                animateFrames = stormActive
             )
         }
     }
@@ -173,14 +183,17 @@ private fun LivingOwlStormLayer(
     rainDensity: Float,
     lightningEnabled: Boolean,
     stormFogEnabled: Boolean,
-    pageParallaxFraction: Float
+    pageParallaxFraction: Float,
+    animateFrames: Boolean
 ) {
     var frameTimeMs by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(stormMode) {
+    LaunchedEffect(stormMode, animateFrames) {
+        if (!animateFrames) return@LaunchedEffect
+        val baseOffsetMs = frameTimeMs
         val start = System.nanoTime()
         while (true) {
             withFrameNanos { now ->
-                frameTimeMs = (now - start) / 1_000_000L
+                frameTimeMs = baseOffsetMs + (now - start) / 1_000_000L
             }
         }
     }
@@ -207,6 +220,7 @@ private fun LivingOwlStormLayer(
     val boltSeeds = remember {
         listOf(0.18f, 0.72f, 0.38f, 0.84f, 0.52f)
     }
+    val boltPath = remember { Path() }
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
@@ -280,13 +294,12 @@ private fun LivingOwlStormLayer(
                 val strikeIndex = ((tSec / 6.8f).toInt()) % boltSeeds.size
                 val startX = w * boltSeeds[strikeIndex]
                 if (flashIntensity > 0.30f) {
-                    val boltPath = Path().apply {
-                        moveTo(startX, 0f)
-                        lineTo(startX - w * 0.04f, h * 0.09f)
-                        lineTo(startX + w * 0.025f, h * 0.16f)
-                        lineTo(startX - w * 0.055f, h * 0.26f)
-                        lineTo(startX - w * 0.01f, h * 0.35f)
-                    }
+                    boltPath.reset()
+                    boltPath.moveTo(startX, 0f)
+                    boltPath.lineTo(startX - w * 0.04f, h * 0.09f)
+                    boltPath.lineTo(startX + w * 0.025f, h * 0.16f)
+                    boltPath.lineTo(startX - w * 0.055f, h * 0.26f)
+                    boltPath.lineTo(startX - w * 0.01f, h * 0.35f)
                     // Outer bolt glow
                     drawPath(
                         path = boltPath,

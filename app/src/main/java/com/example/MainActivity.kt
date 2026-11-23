@@ -51,6 +51,7 @@ import com.example.ui.components.ExpandedFolderOverlay
 import com.example.ui.components.ItemCustomizationDialog
 import com.example.ui.components.LandscapeEditorialHomeScreen
 import com.example.ui.components.PortraitHomeScreen
+import com.example.ui.components.RecentsOverlay
 import com.example.ui.components.SettingsStudioSheet
 import com.example.ui.components.WallpaperCanvas
 import com.example.ui.components.WidgetPickerSheet
@@ -164,6 +165,12 @@ private fun OwlLauncherRoot(
         viewModel.setCurrentPage(pagerState.currentPage)
     }
 
+    LaunchedEffect(uiState.isDefaultLauncher, uiState.prefs.syncSystemWallpaper) {
+        if (uiState.isDefaultLauncher && uiState.prefs.syncSystemWallpaper) {
+            viewModel.syncWallpaperIfNeeded(isLandscape = systemIsLandscape)
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
@@ -210,6 +217,11 @@ private fun OwlLauncherRoot(
     ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             // Dual Portrait / Landscape Wallpaper Canvas + Living Owl Storm Engine
+            val wallpaperPaused = uiState.isDrawerOpen ||
+                uiState.isRecentsOpen ||
+                uiState.isSettingsOpen ||
+                uiState.isWidgetPickerOpen ||
+                uiState.selectedNestToOpen != null
             WallpaperCanvas(
                 isLandscape = effectiveWallpaperLandscape,
                 portraitConfig = uiState.prefs.portraitWallpaper,
@@ -219,7 +231,8 @@ private fun OwlLauncherRoot(
                 rainDensity = uiState.prefs.rainDensity,
                 lightningEnabled = uiState.prefs.lightningEnabled,
                 stormFogEnabled = uiState.prefs.stormFogEnabled,
-                pageParallaxFraction = pageParallaxFraction
+                pageParallaxFraction = pageParallaxFraction,
+                isPaused = wallpaperPaused
             )
 
             // Responsive Orientation Home Layout with Multi-Page Horizontal Layers & 24 Gestures
@@ -229,6 +242,7 @@ private fun OwlLauncherRoot(
                     pagerState = pagerState,
                     widgetHost = viewModel.widgetHost,
                     onGesture = { viewModel.executeGesture(it) },
+                    onOpenRecents = { viewModel.openRecents(true) },
                     onLongPressHome = { viewModel.onHomeBackgroundLongPress() },
                     onCloseControlBar = { viewModel.closeHomeControlBarAndEdit() },
                     onToggleEditMode = { viewModel.setEditMode(!uiState.isEditMode) },
@@ -242,7 +256,7 @@ private fun OwlLauncherRoot(
                     onShowAppMenu = { viewModel.showAppMenu(it) },
                     onUnpinHomeApp = { viewModel.togglePinHome(it) },
                     onReorderOrMoveApp = { key, page, idx ->
-                        viewModel.reorderOrMovePlacedApp(key, page, idx)
+                        viewModel.reorderOrMovePlacedApp(key, page, idx, isLandscape = true)
                     },
                     onMergeAppsIntoFolder = { draggedKey, targetKey, page ->
                         viewModel.mergeAppsIntoFolder(draggedKey, targetKey, page)
@@ -251,7 +265,7 @@ private fun OwlLauncherRoot(
                         viewModel.dropAppIntoNest(draggedKey, nestId)
                     },
                     onReorderOrMoveNest = { nestId, page, idx ->
-                        viewModel.reorderOrMoveNest(nestId, page, idx)
+                        viewModel.reorderOrMoveNest(nestId, page, idx, isLandscape = true)
                     },
                     onCustomizeItem = { viewModel.openItemCustomization(it) },
                     onOpenNest = { viewModel.openNest(it) },
@@ -271,6 +285,7 @@ private fun OwlLauncherRoot(
                     pagerState = pagerState,
                     widgetHost = viewModel.widgetHost,
                     onGesture = { viewModel.executeGesture(it) },
+                    onOpenRecents = { viewModel.openRecents(true) },
                     onLongPressHome = { viewModel.onHomeBackgroundLongPress() },
                     onCloseControlBar = { viewModel.closeHomeControlBarAndEdit() },
                     onToggleEditMode = { viewModel.setEditMode(!uiState.isEditMode) },
@@ -284,7 +299,7 @@ private fun OwlLauncherRoot(
                     onShowAppMenu = { viewModel.showAppMenu(it) },
                     onUnpinHomeApp = { viewModel.togglePinHome(it) },
                     onReorderOrMoveApp = { key, page, idx ->
-                        viewModel.reorderOrMovePlacedApp(key, page, idx)
+                        viewModel.reorderOrMovePlacedApp(key, page, idx, isLandscape = false)
                     },
                     onMergeAppsIntoFolder = { draggedKey, targetKey, page ->
                         viewModel.mergeAppsIntoFolder(draggedKey, targetKey, page)
@@ -293,7 +308,7 @@ private fun OwlLauncherRoot(
                         viewModel.dropAppIntoNest(draggedKey, nestId)
                     },
                     onReorderOrMoveNest = { nestId, page, idx ->
-                        viewModel.reorderOrMoveNest(nestId, page, idx)
+                        viewModel.reorderOrMoveNest(nestId, page, idx, isLandscape = false)
                     },
                     onCustomizeItem = { viewModel.openItemCustomization(it) },
                     onOpenNest = { viewModel.openNest(it) },
@@ -309,6 +324,22 @@ private fun OwlLauncherRoot(
                 )
             }
 
+            // Recent Apps Snapshot Switcher ("اللقطات")
+            AnimatedVisibility(
+                visible = uiState.isRecentsOpen,
+                enter = fadeIn() + scaleIn(initialScale = 0.94f),
+                exit = fadeOut() + scaleOut(targetScale = 0.94f)
+            ) {
+                RecentsOverlay(
+                    uiState = uiState,
+                    onDismiss = { viewModel.openRecents(false) },
+                    onLaunchApp = { viewModel.launchApp(it) },
+                    onDismissRecent = { viewModel.dismissRecentApp(it) },
+                    onClearAll = { viewModel.clearRecentApps() },
+                    onOpenAppInfo = { viewModel.appsManager.openAppInfo(it.packageName) }
+                )
+            }
+
             // App Drawer Overlay (Swipe Down or Tap X to return Home)
             AnimatedVisibility(
                 visible = uiState.isDrawerOpen,
@@ -318,6 +349,7 @@ private fun OwlLauncherRoot(
                 AppDrawerSheet(
                     uiState = uiState,
                     onDismiss = { viewModel.openDrawer(false) },
+                    onOpenRecents = { viewModel.openRecents(true) },
                     onLaunchApp = { viewModel.launchApp(it) },
                     onShowAppMenu = { viewModel.showAppMenu(it) },
                     onVaultUnlocked = { viewModel.setVaultUnlocked(it) }
@@ -357,11 +389,17 @@ private fun OwlLauncherRoot(
                     onUpdateWallpaperConfig = { land, cfg ->
                         viewModel.updateWallpaperConfig(land, cfg)
                     },
+                    onSetSyncSystemWallpaper = { enabled ->
+                        viewModel.setSyncSystemWallpaper(enabled, systemIsLandscape)
+                    },
+                    onApplySystemWallpaperNow = { land ->
+                        viewModel.applyWallpaperToSystemNow(land)
+                    },
                     onUpdateStormConfig = { mode, density, lightning, fog ->
                         viewModel.updateStormConfig(mode, density, lightning, fog)
                     },
-                    onUpdateLayerConfig = { transition, showDock ->
-                        viewModel.updateLayerConfig(transition, showDock)
+                    onUpdateLayerConfig = { transition, showDock, showRecentsInDock ->
+                        viewModel.updateLayerConfig(transition, showDock, showRecentsInDock)
                     },
                     onAddPage = { viewModel.addHomePage() },
                     onRemovePage = { viewModel.removeCurrentHomePage() },

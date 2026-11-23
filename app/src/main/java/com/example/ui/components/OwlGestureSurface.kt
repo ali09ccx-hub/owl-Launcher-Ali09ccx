@@ -12,27 +12,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import com.example.model.GestureId
 import kotlin.math.abs
 
 /**
- * Multi-touch & edge gesture recognizer supporting 24 distinct gestures.
+ * Multi-touch & edge gesture recognizer supporting 24 distinct gestures plus Swipe-Up-and-Hold for Recents.
  *
  * Uses a two-stage pointer pipeline:
  * 1) Initial pass consumes multi-touch (>= 2 fingers) so HorizontalPager/LazyColumn do not scroll
  *    during 2/3/4-finger pinches, rotations, or swipes.
  * 2) Final pass inspects raw finger travel regardless of LazyColumn consumption so 1-finger
- *    Swipe Up reliably opens the App Drawer without breaking scrolling or item drag-and-drop.
+ *    Swipe Up reliably opens the App Drawer and Swipe-Up-and-Hold opens Recents without breaking scrolling or drag-and-drop.
  */
 @Composable
 fun OwlGestureOverlay(
     onGesture: (GestureId) -> Unit,
     onLongPressEmptyArea: () -> Unit,
+    onSwipeUpAndHold: (() -> Unit)? = null,
     isChildDragging: Boolean = false,
     canScrollBackward: () -> Boolean = { false },
     canScrollForward: () -> Boolean = { false },
@@ -40,14 +43,17 @@ fun OwlGestureOverlay(
     content: @Composable () -> Unit
 ) {
     val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
     val edgeThresholdPx = with(density) { 26.dp.toPx() }
     val swipeThresholdPx = with(density) { 44.dp.toPx() }
     val tapSlopPx = with(density) { 18.dp.toPx() }
     val longPressTimeoutMs = 520L
+    val swipeUpHoldDelayMs = 230L
     val multiTapWindowMs = 280L
 
     val latestOnGesture by rememberUpdatedState(onGesture)
     val latestOnLongPressEmpty by rememberUpdatedState(onLongPressEmptyArea)
+    val latestOnSwipeUpAndHold by rememberUpdatedState(onSwipeUpAndHold)
     val latestChildDragging by rememberUpdatedState(isChildDragging)
     val latestCanScrollBackward by rememberUpdatedState(canScrollBackward)
     val latestCanScrollForward by rememberUpdatedState(canScrollForward)
@@ -98,9 +104,45 @@ fun OwlGestureOverlay(
                     var gestureEmitted = false
                     var anyChildConsumedHold = firstDown.isConsumed
                     var abortedByChildDrag = latestChildDragging
+                    var upwardHoldReadySince = 0L
 
                     while (true) {
-                        val event = awaitPointerEvent(pass = PointerEventPass.Final)
+                        val allowSwipeUpHold = maxPointers == 1 &&
+                            !abortedByChildDrag &&
+                            !gestureEmitted &&
+                            !longPressTriggered &&
+                            latestOnSwipeUpAndHold != null &&
+                            totalPan.y < -swipeThresholdPx &&
+                            abs(totalPan.y) > abs(totalPan.x) * 1.15f &&
+                            (!latestCanScrollForward() || startPos.y > heightPx * 0.48f)
+
+                        val nowBeforeWait = System.currentTimeMillis()
+                        if (allowSwipeUpHold) {
+                            if (upwardHoldReadySince == 0L) upwardHoldReadySince = nowBeforeWait
+                        } else {
+                            upwardHoldReadySince = 0L
+                        }
+
+                        val event = if (allowSwipeUpHold) {
+                            val elapsedHold = nowBeforeWait - upwardHoldReadySince
+                            val remainingHold = (swipeUpHoldDelayMs - elapsedHold).coerceAtLeast(1L)
+                            withTimeoutOrNull(remainingHold) {
+                                awaitPointerEvent(pass = PointerEventPass.Final)
+                            }
+                        } else {
+                            awaitPointerEvent(pass = PointerEventPass.Final)
+                        }
+
+                        if (event == null) {
+                            // Finger stayed held steady after swiping upward -> open Recents!
+                            if (!latestChildDragging && !gestureEmitted) {
+                                gestureEmitted = true
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                latestOnSwipeUpAndHold?.invoke()
+                            }
+                            continue
+                        }
+
                         if (latestChildDragging) {
                             abortedByChildDrag = true
                         }
@@ -158,6 +200,10 @@ fun OwlGestureOverlay(
                                 val delta = change.position - change.previousPosition
                                 totalPan += delta
                                 maxTravel = maxOf(maxTravel, totalPan.getDistance())
+                                if (upwardHoldReadySince > 0L && delta.getDistance() > 8f) {
+                                    // Reset hold timer while still actively swiping upward
+                                    upwardHoldReadySince = System.currentTimeMillis()
+                                }
 
                                 // Detect Edge Swipe immediately
                                 if (!gestureEmitted && maxPointers == 1) {

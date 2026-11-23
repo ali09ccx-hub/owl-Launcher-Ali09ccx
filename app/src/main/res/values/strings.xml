@@ -40,7 +40,21 @@
     <string name="home_menu_gestures">Gestures</string>
     <string name="home_menu_add_page">Add Layer</string>
     <string name="home_menu_remove_page">Remove Layer</string>
+    <string name="home_menu_recents">Recents</string>
     <string name="page_indicator_format">Layer %1$d of %2$d</string>
+
+    <!-- Recent Apps (Snapshots / Overview) -->
+    <string name="recents_title">Recents</string>
+    <string name="recents_empty_title">No Recent Apps Yet</string>
+    <string name="recents_empty_subtitle">Apps you open will appear here as interactive cards so you can switch back anytime.</string>
+    <string name="recents_clear_all">Clear All</string>
+    <string name="recents_tap_to_resume">Tap to open</string>
+    <string name="recents_swipe_dismiss_hint">Swipe up to dismiss • Tap card to resume</string>
+    <string name="recents_count_format">%1$d recent</string>
+    <string name="recents_just_now">Just now</string>
+    <string name="recents_minutes_ago">%1$dm ago</string>
+    <string name="recents_hours_ago">%1$dh ago</string>
+    <string name="recents_desc">Recent Apps (Snapshots)</string>
 
     <!-- Default Launcher Banner -->
     <string name="set_default_launcher_title">Make Owl Your Home Screen</string>
@@ -204,6 +218,10 @@
     <string name="dim_label">Wallpaper Dimming: %1$d%%</string>
     <string name="preview_portrait">Portrait</string>
     <string name="preview_landscape">Landscape</string>
+    <string name="sync_system_wallpaper_toggle">Sync Wallpaper with System (Recents &amp; Unlock)</string>
+    <string name="apply_system_wallpaper_btn">Apply Wallpaper to System Now</string>
+    <string name="system_wallpaper_applied_msg">Owl wallpaper synced with system — now shows in Recents &amp; Unlock</string>
+    <string name="system_wallpaper_failed_msg">Could not update system wallpaper on this device</string>
 
     <string name="icon_shape_label">Icon Frame Shape (Preserves Original Art)</string>
     <string name="shape_original">Original</string>
@@ -216,6 +234,7 @@
     <string name="icon_frame_backdrop">Subtle Frame Ring</string>
     <string name="show_app_labels">Show App Labels</string>
     <string name="show_dock_toggle">Show App Dock</string>
+    <string name="show_recents_dock_toggle">Show Recents Button in Dock</string>
     <string name="portrait_columns_label">Portrait Grid Columns: %1$d</string>
     <string name="landscape_columns_label">Landscape Grid Columns: %1$d</string>
 
@@ -267,6 +286,7 @@
     <!-- Gesture Actions -->
     <string name="ga_none">Disabled</string>
     <string name="ga_open_drawer">Open All Apps Drawer</string>
+    <string name="ga_open_recents">Open Recents (Snapshots)</string>
     <string name="ga_toggle_edit">Toggle Edit Mode</string>
     <string name="ga_open_widgets">Open Widget Picker</string>
     <string name="ga_next_page">Next Home Layer</string>

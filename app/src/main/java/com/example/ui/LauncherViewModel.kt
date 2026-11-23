@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.R
 import com.example.data.InstalledAppsManager
 import com.example.data.LauncherPreferencesRepository
+import com.example.data.SystemWallpaperSync
 import com.example.model.AppInfo
 import com.example.model.AvailableWidgetProvider
 import com.example.model.DeviceStatus
@@ -28,6 +29,7 @@ import com.example.model.OwlNest
 import com.example.model.PlacedAppItem
 import com.example.model.PlacedWidget
 import com.example.model.PlacedWidgetKind
+import com.example.model.RecentAppEntry
 import com.example.model.StormMode
 import com.example.model.WallpaperConfig
 import com.example.model.WidgetSize
@@ -68,6 +70,7 @@ data class LauncherUiState(
     val isHomeControlBarOpen: Boolean = false,
     val isEditMode: Boolean = false,
     val isDrawerOpen: Boolean = false,
+    val isRecentsOpen: Boolean = false,
     val isSettingsOpen: Boolean = false,
     val initialSettingsTab: Int = 0,
     val isWidgetPickerOpen: Boolean = false,
@@ -176,6 +179,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val isHomeControlBarOpen: Boolean = false,
         val isEditMode: Boolean = false,
         val isDrawerOpen: Boolean = false,
+        val isRecentsOpen: Boolean = false,
         val isSettingsOpen: Boolean = false,
         val initialSettingsTab: Int = 0,
         val isWidgetPickerOpen: Boolean = false,
@@ -226,6 +230,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     isHomeControlBarOpen = eph.isHomeControlBarOpen,
                     isEditMode = eph.isEditMode,
                     isDrawerOpen = eph.isDrawerOpen,
+                    isRecentsOpen = eph.isRecentsOpen,
                     isSettingsOpen = eph.isSettingsOpen,
                     initialSettingsTab = eph.initialSettingsTab,
                     isWidgetPickerOpen = eph.isWidgetPickerOpen,
@@ -259,7 +264,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun refreshAppsAndProviders() {
         viewModelScope.launch {
-            val apps = appsManager.loadInstalledApps()
+            val prefs = repository.preferencesFlow.first()
+            val priorityKeys = buildSet {
+                prefs.placedApps.forEach { add(it.componentKey) }
+                prefs.dockAppKeys.forEach { add(it) }
+                prefs.owlNests.forEach { nest -> nest.appKeys.forEach { add(it) } }
+                prefs.recentApps.forEach { add(it.componentKey) }
+            }
+
+            val apps = appsManager.loadInstalledAppsTwoPhase(priorityKeys) { priorityApps ->
+                if (_installedApps.value.isEmpty()) {
+                    _installedApps.value = priorityApps
+                }
+            }
             _installedApps.value = apps
             _isLoadingApps.value = false
 
@@ -368,8 +385,36 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun launchApp(app: AppInfo) {
-        appsManager.launchApp(app)
+        val launched = appsManager.launchApp(app)
+        if (launched) {
+            recordRecentApp(app.componentKey)
+        }
         closeAllOverlays()
+    }
+
+    private fun recordRecentApp(componentKey: String) {
+        viewModelScope.launch {
+            val current = _uiState.value.prefs.recentApps
+            val filtered = current.filterNot { it.componentKey == componentKey }
+            val updated = listOf(
+                RecentAppEntry(componentKey = componentKey, lastOpenedAt = System.currentTimeMillis())
+            ) + filtered
+            repository.setRecentApps(updated.take(16))
+        }
+    }
+
+    fun dismissRecentApp(componentKey: String) {
+        viewModelScope.launch {
+            val updated = _uiState.value.prefs.recentApps.filterNot { it.componentKey == componentKey }
+            repository.setRecentApps(updated)
+        }
+    }
+
+    fun clearRecentApps() {
+        viewModelScope.launch {
+            repository.setRecentApps(emptyList())
+            _ephemeral.update { it.copy(isRecentsOpen = false) }
+        }
     }
 
     fun onHomeBackgroundLongPress() {
@@ -394,8 +439,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _ephemeral.update {
             it.copy(
                 isDrawerOpen = open,
+                isRecentsOpen = if (open) false else it.isRecentsOpen,
                 isHomeControlBarOpen = if (open) false else it.isHomeControlBarOpen,
                 vaultUnlocked = if (!open) false else it.vaultUnlocked
+            )
+        }
+    }
+
+    fun openRecents(open: Boolean) {
+        _ephemeral.update {
+            it.copy(
+                isRecentsOpen = open,
+                isDrawerOpen = if (open) false else it.isDrawerOpen,
+                isHomeControlBarOpen = if (open) false else it.isHomeControlBarOpen,
+                isEditMode = if (open) false else it.isEditMode
             )
         }
     }
@@ -445,6 +502,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 isHomeControlBarOpen = false,
                 isEditMode = false,
                 isDrawerOpen = false,
+                isRecentsOpen = false,
                 isSettingsOpen = false,
                 isWidgetPickerOpen = false,
                 settingsPreviewLandscape = null,
@@ -492,6 +550,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
             eph.isSettingsOpen -> {
                 openSettings(false)
+                true
+            }
+            eph.isRecentsOpen -> {
+                openRecents(false)
                 true
             }
             eph.isDrawerOpen -> {
@@ -620,6 +682,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         when (binding.action) {
             GestureActionType.NONE -> Unit
             GestureActionType.OPEN_DRAWER -> openDrawer(true)
+            GestureActionType.OPEN_RECENTS -> openRecents(true)
             GestureActionType.TOGGLE_EDIT -> setEditMode(!state.isEditMode)
             GestureActionType.OPEN_WIDGETS -> openWidgetPicker(true)
             GestureActionType.NEXT_PAGE -> jumpToPage(state.currentPage + 1)
@@ -733,7 +796,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val clamped = targetPage.coerceIn(0, _uiState.value.prefs.pageCount - 1)
         viewModelScope.launch {
             val list = _uiState.value.prefs.placedApps.map {
-                if (it.componentKey == componentKey) it.copy(pageIndex = clamped) else it
+                if (it.componentKey == componentKey) {
+                    it.copy(pageIndex = clamped, slotIndex = -1, landscapeSlotIndex = -1)
+                } else it
             }
             repository.setPlacedApps(list)
             jumpToPage(clamped)
@@ -743,24 +808,81 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun reorderOrMovePlacedApp(
         componentKey: String,
         targetPage: Int,
-        targetIndexInPage: Int? = null
+        targetSlotIndex: Int? = null,
+        isLandscape: Boolean = false
     ) {
         viewModelScope.launch {
-            val maxPage = (_uiState.value.prefs.pageCount - 1).coerceAtLeast(0)
+            val state = _uiState.value
+            val maxPage = (state.prefs.pageCount - 1).coerceAtLeast(0)
             val safePage = targetPage.coerceIn(0, maxPage)
-            val all = _uiState.value.prefs.placedApps.toMutableList()
-            val moving = all.firstOrNull { it.componentKey == componentKey }
-                ?: PlacedAppItem(componentKey = componentKey, pageIndex = safePage)
+            val allApps = state.prefs.placedApps.toMutableList()
+            val allNests = state.prefs.owlNests.toMutableList()
 
-            val withoutMoving = all.filterNot { it.componentKey == componentKey }
-            val onTargetPage = withoutMoving.filter { it.pageIndex == safePage }.toMutableList()
-            val otherPages = withoutMoving.filterNot { it.pageIndex == safePage }
+            val existing = allApps.firstOrNull { it.componentKey == componentKey }
+            val oldPage = existing?.pageIndex ?: safePage
+            val oldSlot = if (existing == null) {
+                -1
+            } else if (isLandscape) {
+                existing.landscapeSlotIndex
+            } else {
+                existing.slotIndex
+            }
+            val moving = existing ?: PlacedAppItem(componentKey = componentKey, pageIndex = safePage)
 
-            val insertIdx = (targetIndexInPage ?: onTargetPage.size).coerceIn(0, onTargetPage.size)
-            onTargetPage.add(insertIdx, moving.copy(pageIndex = safePage))
+            val updatedMoving = if (targetSlotIndex != null && targetSlotIndex >= 0) {
+                val swapFallbackSlot = if (oldPage == safePage && oldSlot >= 0) oldSlot else -1
+                var nestsChanged = false
+                for (i in allNests.indices) {
+                    val nest = allNests[i]
+                    if (nest.pageIndex == safePage && nest.folderSize == FolderSizeMode.SIZE_1X1) {
+                        val nSlot = if (isLandscape) nest.landscapeSlotIndex else nest.slotIndex
+                        if (nSlot == targetSlotIndex) {
+                            allNests[i] = if (isLandscape) {
+                                nest.copy(landscapeSlotIndex = swapFallbackSlot)
+                            } else {
+                                nest.copy(slotIndex = swapFallbackSlot)
+                            }
+                            nestsChanged = true
+                        }
+                    }
+                }
+                if (nestsChanged) {
+                    repository.setOwlNests(allNests)
+                }
 
-            repository.setPlacedApps(otherPages + onTargetPage)
-            if (_uiState.value.currentPage != safePage) {
+                for (i in allApps.indices) {
+                    val other = allApps[i]
+                    if (other.componentKey != componentKey && other.pageIndex == safePage) {
+                        val oSlot = if (isLandscape) other.landscapeSlotIndex else other.slotIndex
+                        if (oSlot == targetSlotIndex) {
+                            allApps[i] = if (isLandscape) {
+                                other.copy(landscapeSlotIndex = swapFallbackSlot)
+                            } else {
+                                other.copy(slotIndex = swapFallbackSlot)
+                            }
+                        }
+                    }
+                }
+
+                if (isLandscape) {
+                    moving.copy(
+                        pageIndex = safePage,
+                        landscapeSlotIndex = targetSlotIndex,
+                        slotIndex = if (moving.slotIndex < 0) targetSlotIndex else moving.slotIndex
+                    )
+                } else {
+                    moving.copy(
+                        pageIndex = safePage,
+                        slotIndex = targetSlotIndex
+                    )
+                }
+            } else {
+                moving.copy(pageIndex = safePage, slotIndex = -1, landscapeSlotIndex = -1)
+            }
+
+            val finalApps = allApps.filterNot { it.componentKey == componentKey } + updatedMoving
+            repository.setPlacedApps(finalApps)
+            if (state.currentPage != safePage) {
                 jumpToPage(safePage)
             }
         }
@@ -771,6 +893,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val state = _uiState.value
             val safePage = pageIndex.coerceIn(0, (state.prefs.pageCount - 1).coerceAtLeast(0))
+            val targetItem = state.prefs.placedApps.firstOrNull { it.componentKey == targetKey }
             val updatedApps = state.prefs.placedApps.filterNot {
                 it.componentKey == draggedKey || it.componentKey == targetKey
             }
@@ -783,7 +906,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 id = UUID.randomUUID().toString(),
                 name = autoName,
                 appKeys = listOf(targetKey, draggedKey),
-                pageIndex = safePage
+                pageIndex = safePage,
+                slotIndex = targetItem?.slotIndex ?: -1,
+                landscapeSlotIndex = targetItem?.landscapeSlotIndex ?: -1
             )
             val updatedNests = state.prefs.owlNests + newNest
             repository.setPlacedApps(updatedApps)
@@ -807,19 +932,78 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun reorderOrMoveNest(nestId: String, targetPage: Int, targetIndexInPage: Int? = null) {
+    fun reorderOrMoveNest(
+        nestId: String,
+        targetPage: Int,
+        targetSlotIndex: Int? = null,
+        isLandscape: Boolean = false
+    ) {
         viewModelScope.launch {
             val state = _uiState.value
             val maxPage = (state.prefs.pageCount - 1).coerceAtLeast(0)
             val safePage = targetPage.coerceIn(0, maxPage)
-            val all = state.prefs.owlNests
-            val moving = all.firstOrNull { it.id == nestId } ?: return@launch
-            val withoutMoving = all.filterNot { it.id == nestId }
-            val onTargetPage = withoutMoving.filter { it.pageIndex == safePage }.toMutableList()
-            val otherPages = withoutMoving.filterNot { it.pageIndex == safePage }
-            val insertIdx = (targetIndexInPage ?: onTargetPage.size).coerceIn(0, onTargetPage.size)
-            onTargetPage.add(insertIdx, moving.copy(pageIndex = safePage))
-            repository.setOwlNests(otherPages + onTargetPage)
+            val allNests = state.prefs.owlNests.toMutableList()
+            val allApps = state.prefs.placedApps.toMutableList()
+            val moving = allNests.firstOrNull { it.id == nestId } ?: return@launch
+            val oldPage = moving.pageIndex
+            val oldSlot = if (isLandscape) moving.landscapeSlotIndex else moving.slotIndex
+
+            val updatedMoving = if (targetSlotIndex != null && targetSlotIndex >= 0) {
+                val swapFallbackSlot = if (oldPage == safePage && oldSlot >= 0) oldSlot else -1
+
+                for (i in allNests.indices) {
+                    val other = allNests[i]
+                    if (other.id != nestId && other.pageIndex == safePage &&
+                        other.folderSize == FolderSizeMode.SIZE_1X1
+                    ) {
+                        val oSlot = if (isLandscape) other.landscapeSlotIndex else other.slotIndex
+                        if (oSlot == targetSlotIndex) {
+                            allNests[i] = if (isLandscape) {
+                                other.copy(landscapeSlotIndex = swapFallbackSlot)
+                            } else {
+                                other.copy(slotIndex = swapFallbackSlot)
+                            }
+                        }
+                    }
+                }
+
+                var appsChanged = false
+                for (i in allApps.indices) {
+                    val appItem = allApps[i]
+                    if (appItem.pageIndex == safePage) {
+                        val aSlot = if (isLandscape) appItem.landscapeSlotIndex else appItem.slotIndex
+                        if (aSlot == targetSlotIndex) {
+                            allApps[i] = if (isLandscape) {
+                                appItem.copy(landscapeSlotIndex = swapFallbackSlot)
+                            } else {
+                                appItem.copy(slotIndex = swapFallbackSlot)
+                            }
+                            appsChanged = true
+                        }
+                    }
+                }
+                if (appsChanged) {
+                    repository.setPlacedApps(allApps)
+                }
+
+                if (isLandscape) {
+                    moving.copy(
+                        pageIndex = safePage,
+                        landscapeSlotIndex = targetSlotIndex,
+                        slotIndex = if (moving.slotIndex < 0) targetSlotIndex else moving.slotIndex
+                    )
+                } else {
+                    moving.copy(pageIndex = safePage, slotIndex = targetSlotIndex)
+                }
+            } else {
+                moving.copy(pageIndex = safePage, slotIndex = -1, landscapeSlotIndex = -1)
+            }
+
+            val finalNests = allNests.filterNot { it.id == nestId } + updatedMoving
+            repository.setOwlNests(finalNests)
+            if (state.currentPage != safePage) {
+                jumpToPage(safePage)
+            }
         }
     }
 
@@ -1023,10 +1207,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     // ---- Wallpapers, Storm Engine, Layers & Style ----
     fun saveWallpaperFromUri(isLandscape: Boolean, uri: Uri) {
         viewModelScope.launch {
-            if (isLandscape) {
+            val saved = if (isLandscape) {
                 repository.saveLandscapeWallpaperFromUri(uri)
             } else {
                 repository.savePortraitWallpaperFromUri(uri)
+            }
+            if (saved) {
+                syncWallpaperIfNeeded(isLandscape = isLandscape, force = false)
             }
         }
     }
@@ -1034,6 +1221,53 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun resetWallpaper(isLandscape: Boolean) {
         viewModelScope.launch {
             repository.resetWallpaper(isLandscape)
+            syncWallpaperIfNeeded(isLandscape = isLandscape, force = false)
+        }
+    }
+
+    fun setSyncSystemWallpaper(enabled: Boolean, isLandscape: Boolean) {
+        viewModelScope.launch {
+            repository.setSyncSystemWallpaper(enabled)
+            if (enabled) {
+                syncWallpaperIfNeeded(isLandscape = isLandscape, force = false)
+            }
+        }
+    }
+
+    fun applyWallpaperToSystemNow(isLandscape: Boolean) {
+        syncWallpaperIfNeeded(isLandscape = isLandscape, force = true)
+    }
+
+    fun syncWallpaperIfNeeded(isLandscape: Boolean, force: Boolean = false) {
+        viewModelScope.launch {
+            val prefs = repository.preferencesFlow.first()
+            val isDefault = appsManager.isDefaultLauncher()
+            if (!force && (!prefs.syncSystemWallpaper || !isDefault)) {
+                return@launch
+            }
+            val cfg = if (isLandscape) {
+                prefs.landscapeWallpaper
+            } else {
+                prefs.portraitWallpaper
+            }
+            val sig = SystemWallpaperSync.signatureFor(cfg, isLandscape)
+            if (!force) {
+                val lastSig = repository.lastSyncedWallpaperSignatureFlow.first()
+                if (lastSig == sig) return@launch
+            }
+            val ok = SystemWallpaperSync.applyToSystemWallpaper(
+                context = getApplication(),
+                config = cfg,
+                isLandscape = isLandscape
+            )
+            if (ok) {
+                repository.setLastSyncedWallpaperSignature(sig)
+                if (force) {
+                    emitMessage(getApplication<Application>().getString(R.string.system_wallpaper_applied_msg))
+                }
+            } else if (force) {
+                emitMessage(getApplication<Application>().getString(R.string.system_wallpaper_failed_msg))
+            }
         }
     }
 
@@ -1056,10 +1290,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun updateLayerConfig(
         layerTransition: LayerTransitionStyle? = null,
-        showDock: Boolean? = null
+        showDock: Boolean? = null,
+        showRecentsInDock: Boolean? = null
     ) {
         viewModelScope.launch {
-            repository.updateLayerConfig(layerTransition = layerTransition, showDock = showDock)
+            repository.updateLayerConfig(
+                layerTransition = layerTransition,
+                showDock = showDock,
+                showRecentsInDock = showRecentsInDock
+            )
         }
     }
 

@@ -81,7 +81,9 @@ data class PlacedAppItem(
     val componentKey: String,
     val pageIndex: Int = 0,
     val scale: Float = 1.0f,
-    val shapeOverride: IconShapeStyle? = null
+    val shapeOverride: IconShapeStyle? = null,
+    val slotIndex: Int = -1,
+    val landscapeSlotIndex: Int = -1
 )
 
 @Immutable
@@ -92,7 +94,15 @@ data class OwlNest(
     val pageIndex: Int = 0,
     val folderSize: FolderSizeMode = FolderSizeMode.SIZE_1X1,
     val shapeOverride: IconShapeStyle? = null,
-    val gifPath: String? = null
+    val gifPath: String? = null,
+    val slotIndex: Int = -1,
+    val landscapeSlotIndex: Int = -1
+)
+
+@Immutable
+data class RecentAppEntry(
+    val componentKey: String,
+    val lastOpenedAt: Long
 )
 
 enum class WidgetSize {
@@ -159,6 +169,7 @@ enum class GestureId {
 enum class GestureActionType {
     NONE,
     OPEN_DRAWER,
+    OPEN_RECENTS,
     TOGGLE_EDIT,
     OPEN_WIDGETS,
     NEXT_PAGE,
@@ -188,7 +199,7 @@ fun defaultGestureBindings(): Map<GestureId, GestureBinding> = mapOf(
     GestureId.ONE_F_SWIPE_DOWN to GestureBinding(GestureActionType.EXPAND_NOTIFICATIONS),
     GestureId.ONE_F_DOUBLE_TAP to GestureBinding(GestureActionType.TOGGLE_CLEAN),
     GestureId.ONE_F_TRIPLE_TAP to GestureBinding(GestureActionType.TOGGLE_NIGHT_OWL),
-    GestureId.TWO_F_SWIPE_UP to GestureBinding(GestureActionType.OPEN_DRAWER),
+    GestureId.TWO_F_SWIPE_UP to GestureBinding(GestureActionType.OPEN_RECENTS),
     GestureId.TWO_F_SWIPE_DOWN to GestureBinding(GestureActionType.EXPAND_NOTIFICATIONS),
     GestureId.TWO_F_SWIPE_LEFT to GestureBinding(GestureActionType.NEXT_PAGE),
     GestureId.TWO_F_SWIPE_RIGHT to GestureBinding(GestureActionType.PREV_PAGE),
@@ -221,6 +232,8 @@ data class LauncherPreferencesState(
     val layerTransition: LayerTransitionStyle = LayerTransitionStyle.DEPTH_PARALLAX,
     val pageCount: Int = 2,
     val showDock: Boolean = true,
+    val showRecentsInDock: Boolean = false,
+    val syncSystemWallpaper: Boolean = true,
     val iconShape: IconShapeStyle = IconShapeStyle.ORIGINAL,
     val iconSizeDp: Int = 54,
     val showIconFrameBackdrop: Boolean = false,
@@ -242,6 +255,7 @@ data class LauncherPreferencesState(
     val focusEssentialAppKeys: Set<String> = emptySet(),
     val owlNests: List<OwlNest> = emptyList(),
     val placedWidgets: List<PlacedWidget> = emptyList(),
+    val recentApps: List<RecentAppEntry> = emptyList(),
     val gestureBindings: Map<GestureId, GestureBinding> = defaultGestureBindings()
 )
 
