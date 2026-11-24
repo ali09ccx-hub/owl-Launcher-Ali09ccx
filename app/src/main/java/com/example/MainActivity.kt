@@ -48,6 +48,8 @@ import com.example.ui.components.AppDrawerSheet
 import com.example.ui.components.CreateNestDialog
 import com.example.ui.components.DispatchNoteEditorDialog
 import com.example.ui.components.ExpandedFolderOverlay
+import com.example.ui.components.FreeFrameEditorOverlay
+import com.example.ui.components.HomeKeyboardTyperOverlay
 import com.example.ui.components.ItemCustomizationDialog
 import com.example.ui.components.LandscapeEditorialHomeScreen
 import com.example.ui.components.PortraitHomeScreen
@@ -221,7 +223,9 @@ private fun OwlLauncherRoot(
                 uiState.isRecentsOpen ||
                 uiState.isSettingsOpen ||
                 uiState.isWidgetPickerOpen ||
-                uiState.selectedNestToOpen != null
+                uiState.selectedNestToOpen != null ||
+                uiState.freeFrameEditorTarget != null ||
+                uiState.isHomeTyperOpen
             WallpaperCanvas(
                 isLandscape = effectiveWallpaperLandscape,
                 portraitConfig = uiState.prefs.portraitWallpaper,
@@ -267,6 +271,10 @@ private fun OwlLauncherRoot(
                     onReorderOrMoveNest = { nestId, page, idx ->
                         viewModel.reorderOrMoveNest(nestId, page, idx, isLandscape = true)
                     },
+                    onReorderOrMoveWidget = { widgetId, page, idx ->
+                        viewModel.reorderOrMoveWidget(widgetId, page, idx, isLandscape = true)
+                    },
+                    onDeleteNest = { viewModel.deleteNest(it) },
                     onCustomizeItem = { viewModel.openItemCustomization(it) },
                     onOpenNest = { viewModel.openNest(it) },
                     onToggleFocusTimer = { viewModel.toggleFocusTimer() },
@@ -275,9 +283,13 @@ private fun OwlLauncherRoot(
                     onOpenNoteEditor = { viewModel.openNoteEditor(true) },
                     onCycleWisdom = { viewModel.cycleWisdomQuote() },
                     onPickGifForWidget = { id, uri -> viewModel.attachGifToWidget(id, uri) },
-                    onCycleWidgetSize = { viewModel.cycleWidgetSize(it) },
-                    onMoveWidget = { id, dir -> viewModel.moveWidget(id, dir) },
-                    onRemoveWidget = { viewModel.removeWidget(it) }
+                    onRemoveWidget = { viewModel.removeWidget(it) },
+                    onMoveStickyText = { page, x, y -> viewModel.moveStickyText(page, x, y) },
+                    onEditStickyText = { page ->
+                        viewModel.setCurrentPage(page)
+                        viewModel.openHomeTyper(true)
+                    },
+                    onClearStickyText = { page -> viewModel.clearStickyText(page) }
                 )
             } else {
                 PortraitHomeScreen(
@@ -310,6 +322,10 @@ private fun OwlLauncherRoot(
                     onReorderOrMoveNest = { nestId, page, idx ->
                         viewModel.reorderOrMoveNest(nestId, page, idx, isLandscape = false)
                     },
+                    onReorderOrMoveWidget = { widgetId, page, idx ->
+                        viewModel.reorderOrMoveWidget(widgetId, page, idx, isLandscape = false)
+                    },
+                    onDeleteNest = { viewModel.deleteNest(it) },
                     onCustomizeItem = { viewModel.openItemCustomization(it) },
                     onOpenNest = { viewModel.openNest(it) },
                     onToggleFocusTimer = { viewModel.toggleFocusTimer() },
@@ -318,9 +334,13 @@ private fun OwlLauncherRoot(
                     onOpenNoteEditor = { viewModel.openNoteEditor(true) },
                     onCycleWisdom = { viewModel.cycleWisdomQuote() },
                     onPickGifForWidget = { id, uri -> viewModel.attachGifToWidget(id, uri) },
-                    onCycleWidgetSize = { viewModel.cycleWidgetSize(it) },
-                    onMoveWidget = { id, dir -> viewModel.moveWidget(id, dir) },
-                    onRemoveWidget = { viewModel.removeWidget(it) }
+                    onRemoveWidget = { viewModel.removeWidget(it) },
+                    onMoveStickyText = { page, x, y -> viewModel.moveStickyText(page, x, y) },
+                    onEditStickyText = { page ->
+                        viewModel.setCurrentPage(page)
+                        viewModel.openHomeTyper(true)
+                    },
+                    onClearStickyText = { page -> viewModel.clearStickyText(page) }
                 )
             }
 
@@ -443,6 +463,7 @@ private fun OwlLauncherRoot(
                     target = target,
                     pageCount = pageCount,
                     onDismiss = { viewModel.openItemCustomization(null) },
+                    onOpenBetterEditor = { t -> viewModel.openBetterFrameEditor(t) },
                     onUpdateApp = { viewModel.updatePlacedAppItem(it) },
                     onRemoveApp = { viewModel.togglePinHome(it) },
                     onUpdateNest = { viewModel.updateNest(it) },
@@ -451,6 +472,52 @@ private fun OwlLauncherRoot(
                     onUpdateWidget = { viewModel.updateWidget(it) },
                     onAttachGifToWidget = { widgetId, uri -> viewModel.attachGifToWidget(widgetId, uri) },
                     onRemoveWidget = { viewModel.removeWidget(it) }
+                )
+            }
+
+            // Full-Screen Visual Free-Frame Editor ("التعديل الأفضل")
+            var lastEditorTarget by remember { mutableStateOf(uiState.freeFrameEditorTarget) }
+            if (uiState.freeFrameEditorTarget != null) {
+                lastEditorTarget = uiState.freeFrameEditorTarget
+            }
+            AnimatedVisibility(
+                visible = uiState.freeFrameEditorTarget != null,
+                enter = fadeIn() + scaleIn(initialScale = 0.94f),
+                exit = fadeOut() + scaleOut(targetScale = 0.94f)
+            ) {
+                lastEditorTarget?.let { target ->
+                    FreeFrameEditorOverlay(
+                        target = target,
+                        uiState = uiState,
+                        widgetHost = viewModel.widgetHost,
+                        onDismiss = { viewModel.openBetterFrameEditor(null) },
+                        onSaveApp = { viewModel.updatePlacedAppItem(it) },
+                        onSaveNest = { viewModel.updateNest(it) },
+                        onSaveWidget = { viewModel.updateWidget(it) }
+                    )
+                }
+            }
+
+            // 8-Finger / 4-Finger Tap On-Screen Keyboard & Persistent Home Screen Text
+            AnimatedVisibility(
+                visible = uiState.isHomeTyperOpen,
+                enter = slideInVertically { it / 2 } + fadeIn(),
+                exit = slideOutVertically { it / 2 } + fadeOut()
+            ) {
+                val activePage = uiState.currentPage
+                val sticky = uiState.prefs.stickyTexts.firstOrNull { it.pageIndex == activePage }
+                HomeKeyboardTyperOverlay(
+                    currentPage = activePage,
+                    stickyText = sticky,
+                    onTextChange = { text -> viewModel.updateStickyText(activePage, text) },
+                    onFontSizeChange = { sizeSp ->
+                        viewModel.updateStickyText(activePage, sticky?.text.orEmpty(), sizeSp)
+                    },
+                    onClearAndClose = {
+                        viewModel.clearStickyText(activePage)
+                        viewModel.openHomeTyper(false)
+                    },
+                    onDismissKeepText = { viewModel.openHomeTyper(false) }
                 )
             }
 

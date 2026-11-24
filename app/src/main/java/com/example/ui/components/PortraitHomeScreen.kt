@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -55,6 +57,7 @@ import com.example.model.GestureId
 import com.example.model.LayerTransitionStyle
 import com.example.model.OwlNest
 import com.example.model.PlacedWidgetKind
+import com.example.model.WidgetSize
 import com.example.ui.ItemCustomizationTarget
 import com.example.ui.LauncherUiState
 import com.example.widgets.OwlAppWidgetHost
@@ -83,6 +86,8 @@ fun PortraitHomeScreen(
     onMergeAppsIntoFolder: (String, String, Int) -> Unit,
     onDropAppIntoNest: (String, String) -> Unit,
     onReorderOrMoveNest: (String, Int, Int?) -> Unit,
+    onReorderOrMoveWidget: (String, Int, Int?) -> Unit,
+    onDeleteNest: (String) -> Unit,
     onCustomizeItem: (ItemCustomizationTarget) -> Unit,
     onOpenNest: (OwlNest) -> Unit,
     onToggleFocusTimer: () -> Unit,
@@ -91,9 +96,10 @@ fun PortraitHomeScreen(
     onOpenNoteEditor: () -> Unit,
     onCycleWisdom: () -> Unit,
     onPickGifForWidget: (String, android.net.Uri) -> Unit,
-    onCycleWidgetSize: (String) -> Unit,
-    onMoveWidget: (String, Int) -> Unit,
     onRemoveWidget: (String) -> Unit,
+    onMoveStickyText: (Int, Float, Float) -> Unit,
+    onEditStickyText: (Int) -> Unit,
+    onClearStickyText: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val prefs = uiState.prefs
@@ -109,6 +115,9 @@ fun PortraitHomeScreen(
         onTapHoldAppNoMove = onShowAppMenu,
         onTapHoldNestNoMove = { nest ->
             onCustomizeItem(ItemCustomizationTarget.NestTarget(nest))
+        },
+        onTapHoldWidgetNoMove = { widget ->
+            onCustomizeItem(ItemCustomizationTarget.WidgetTarget(widget))
         },
         onCommitDrop = { payload, target ->
             when (payload) {
@@ -137,6 +146,13 @@ fun PortraitHomeScreen(
                             target.targetSlotIndex
                         )
                     }
+                    is HomeDropTarget.MoveWidgetToSlot -> {
+                        onReorderOrMoveApp(
+                            payload.app.componentKey,
+                            target.targetPage,
+                            target.targetSlotIndex
+                        )
+                    }
                 }
                 is HomeDragPayload.Nest -> when (target) {
                     is HomeDropTarget.MoveNestToSlot -> {
@@ -153,8 +169,41 @@ fun PortraitHomeScreen(
                             target.targetSlotIndex
                         )
                     }
+                    is HomeDropTarget.MoveWidgetToSlot -> {
+                        onReorderOrMoveNest(
+                            payload.nest.id,
+                            target.targetPage,
+                            target.targetSlotIndex
+                        )
+                    }
                     else -> {
                         onReorderOrMoveNest(payload.nest.id, pagerState.currentPage, null)
+                    }
+                }
+                is HomeDragPayload.Widget -> when (target) {
+                    is HomeDropTarget.MoveWidgetToSlot -> {
+                        onReorderOrMoveWidget(
+                            payload.widget.id,
+                            target.targetPage,
+                            target.targetSlotIndex
+                        )
+                    }
+                    is HomeDropTarget.MoveAppToSlot -> {
+                        onReorderOrMoveWidget(
+                            payload.widget.id,
+                            target.targetPage,
+                            target.targetSlotIndex
+                        )
+                    }
+                    is HomeDropTarget.MoveNestToSlot -> {
+                        onReorderOrMoveWidget(
+                            payload.widget.id,
+                            target.targetPage,
+                            target.targetSlotIndex
+                        )
+                    }
+                    else -> {
+                        onReorderOrMoveWidget(payload.widget.id, pagerState.currentPage, null)
                     }
                 }
             }
@@ -205,6 +254,7 @@ fun PortraitHomeScreen(
                                 onLaunchApp = onLaunchApp,
                                 onShowAppMenu = onShowAppMenu,
                                 onUnpinHomeApp = onUnpinHomeApp,
+                                onDeleteNest = onDeleteNest,
                                 onCustomizeItem = onCustomizeItem,
                                 onOpenNest = onOpenNest,
                                 onToggleFocusTimer = onToggleFocusTimer,
@@ -213,9 +263,10 @@ fun PortraitHomeScreen(
                                 onOpenNoteEditor = onOpenNoteEditor,
                                 onCycleWisdom = onCycleWisdom,
                                 onPickGifForWidget = onPickGifForWidget,
-                                onCycleWidgetSize = onCycleWidgetSize,
-                                onMoveWidget = onMoveWidget,
                                 onRemoveWidget = onRemoveWidget,
+                                onMoveStickyText = onMoveStickyText,
+                                onEditStickyText = onEditStickyText,
+                                onClearStickyText = onClearStickyText,
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .layerTransitionModifier(prefs.layerTransition, pageOffset)
@@ -235,7 +286,15 @@ fun PortraitHomeScreen(
                 }
 
                 if (prefs.cleanCanvasMode) {
-                    Spacer(modifier = Modifier.weight(1f))
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        HomeStickyTextLayer(
+                            stickyText = prefs.stickyTexts.firstOrNull { it.pageIndex == pagerState.currentPage },
+                            isEditMode = uiState.isEditMode,
+                            onMovePosition = { x, y -> onMoveStickyText(pagerState.currentPage, x, y) },
+                            onTapToEdit = { onEditStickyText(pagerState.currentPage) },
+                            onClearText = { onClearStickyText(pagerState.currentPage) }
+                        )
+                    }
                 }
 
                 // Long-Press Revealed Control Bar (ONLY shown after holding empty screen area)
@@ -289,6 +348,7 @@ private fun HomeLayerPageContent(
     onLaunchApp: (AppInfo) -> Unit,
     onShowAppMenu: (AppInfo) -> Unit,
     onUnpinHomeApp: (AppInfo) -> Unit,
+    onDeleteNest: (String) -> Unit,
     onCustomizeItem: (ItemCustomizationTarget) -> Unit,
     onOpenNest: (OwlNest) -> Unit,
     onToggleFocusTimer: () -> Unit,
@@ -297,15 +357,17 @@ private fun HomeLayerPageContent(
     onOpenNoteEditor: () -> Unit,
     onCycleWisdom: () -> Unit,
     onPickGifForWidget: (String, android.net.Uri) -> Unit,
-    onCycleWidgetSize: (String) -> Unit,
-    onMoveWidget: (String, Int) -> Unit,
     onRemoveWidget: (String) -> Unit,
+    onMoveStickyText: (Int, Float, Float) -> Unit,
+    onEditStickyText: (Int) -> Unit,
+    onClearStickyText: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val prefs = uiState.prefs
     val pageWidgets = uiState.widgetsForPage(pageIndex)
     val pageNests = uiState.nestsForPage(pageIndex)
     val pageApps = uiState.placedAppsForPage(pageIndex)
+    val stickyText = prefs.stickyTexts.firstOrNull { it.pageIndex == pageIndex }
     val columns = prefs.portraitColumns.coerceIn(3, 6)
     val minRows = 6
 
@@ -329,48 +391,92 @@ private fun HomeLayerPageContent(
     val activeDragPayload = dragController.activeDrag?.payload
     val draggedAppKey = (activeDragPayload as? HomeDragPayload.App)?.app?.componentKey
     val draggedNestId = (activeDragPayload as? HomeDragPayload.Nest)?.nest?.id
+    val draggedWidgetId = (activeDragPayload as? HomeDragPayload.Widget)?.widget?.id
 
-    // When clean (no widgets / big folders and <= 6 rows), fill entire canvas height so users
-    // can freely drop icons in the top, middle, bottom, or corners and keep them locked there.
-    if (pageWidgets.isEmpty() && bigNests.isEmpty() && allocation.totalRows <= minRows) {
-        Column(
-            modifier = modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    // Primary Unified Canvas: keeps full columns × minRows droppable grid even when Widgets
+    // are on the page, allowing Widgets, Apps, and Folders to be shrunk & placed anywhere (top/middle/bottom/corners).
+    if (bigNests.isEmpty() && allocation.totalRows <= minRows) {
+        BoxWithConstraints(
+            modifier = modifier.padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
-            for (row in 0 until allocation.totalRows) {
-                PortraitGridSlotRow(
-                    row = row,
-                    columns = columns,
-                    pageIndex = pageIndex,
-                    allocation = allocation,
-                    uiState = uiState,
-                    dragController = dragController,
-                    hoveredDropTarget = hoveredDropTarget,
-                    draggedAppKey = draggedAppKey,
-                    draggedNestId = draggedNestId,
-                    onLaunchApp = onLaunchApp,
-                    onShowAppMenu = onShowAppMenu,
-                    onUnpinHomeApp = onUnpinHomeApp,
-                    onCustomizeItem = onCustomizeItem,
-                    onOpenNest = onOpenNest,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                )
+            val hGap = 8.dp
+            val vGap = 8.dp
+            val cellWidth = ((maxWidth - hGap * (columns - 1)) / columns).coerceAtLeast(40.dp)
+            val cellHeight = ((maxHeight - vGap * (allocation.totalRows - 1)) / allocation.totalRows).coerceAtLeast(48.dp)
+
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(vGap)
+            ) {
+                for (row in 0 until allocation.totalRows) {
+                    PortraitGridSlotRow(
+                        row = row,
+                        columns = columns,
+                        pageIndex = pageIndex,
+                        allocation = allocation,
+                        uiState = uiState,
+                        dragController = dragController,
+                        hoveredDropTarget = hoveredDropTarget,
+                        draggedAppKey = draggedAppKey,
+                        draggedNestId = draggedNestId,
+                        onLaunchApp = onLaunchApp,
+                        onShowAppMenu = onShowAppMenu,
+                        onUnpinHomeApp = onUnpinHomeApp,
+                        onDeleteNest = onDeleteNest,
+                        onCustomizeItem = onCustomizeItem,
+                        onOpenNest = onOpenNest,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    )
+                }
             }
-        }
-    } else {
-        LazyColumn(
-            state = listState,
-            modifier = modifier,
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // User-added Widgets on this Layer
-            itemsIndexed(
-                items = pageWidgets,
-                key = { _, item -> "p${pageIndex}_${item.id}" }
-            ) { index, widget ->
+
+            // Freely positioned Widgets Layer over the Grid Canvas
+            pageWidgets.forEachIndexed { idx, widget ->
+                val rawSlot = widget.slotIndex
+                val totalSlots = columns * allocation.totalRows
+                val effectiveSlot = if (rawSlot >= 0) {
+                    rawSlot.coerceIn(0, (totalSlots - 1).coerceAtLeast(0))
+                } else {
+                    ((idx * columns) % totalSlots.coerceAtLeast(1))
+                }
+                val row = (effectiveSlot / columns).coerceIn(0, (allocation.totalRows - 1).coerceAtLeast(0))
+                val col = (effectiveSlot % columns).coerceIn(0, columns - 1)
+
+                val wDp = (widget.customWidthDp?.dp ?: when (widget.size) {
+                    WidgetSize.COMPACT -> cellWidth
+                    WidgetSize.WIDE -> minOf(maxWidth, cellWidth * 2 + hGap)
+                    WidgetSize.TALL -> minOf(maxWidth, cellWidth * 2 + hGap)
+                }).coerceIn(48.dp, maxWidth)
+
+                val hDp = (widget.customHeightDp?.dp ?: when (widget.size) {
+                    WidgetSize.COMPACT -> cellHeight
+                    WidgetSize.WIDE -> minOf(maxHeight, 118.dp)
+                    WidgetSize.TALL -> minOf(maxHeight, 200.dp)
+                }).coerceIn(48.dp, maxHeight)
+
+                val baseCellX = (cellWidth + hGap) * col
+                val xDp = if (wDp <= cellWidth + 10.dp) {
+                    (baseCellX + (cellWidth - wDp) / 2f).coerceIn(0.dp, (maxWidth - wDp).coerceAtLeast(0.dp))
+                } else {
+                    baseCellX.coerceIn(0.dp, (maxWidth - wDp).coerceAtLeast(0.dp))
+                }
+                val baseCellY = (cellHeight + vGap) * row
+                val yDp = if (hDp <= cellHeight + 10.dp) {
+                    (baseCellY + (cellHeight - hDp) / 2f).coerceIn(0.dp, (maxHeight - hDp).coerceAtLeast(0.dp))
+                } else {
+                    baseCellY.coerceIn(0.dp, (maxHeight - hDp).coerceAtLeast(0.dp))
+                }
+
+                val dragPayload = HomeDragPayload.Widget(
+                    widget = widget,
+                    sourcePage = pageIndex,
+                    previewWidthDp = wDp,
+                    previewHeightDp = hDp
+                )
+                val posModifier = Modifier.offset(x = xDp, y = yDp)
+
                 when (widget.kind) {
                     PlacedWidgetKind.OWL_NATIVE -> {
                         OwlNativeWidgetCard(
@@ -389,10 +495,15 @@ private fun HomeLayerPageContent(
                             onCycleWisdom = onCycleWisdom,
                             onPickGifForWidget = { uri -> onPickGifForWidget(widget.id, uri) },
                             onCustomize = { onCustomizeItem(ItemCustomizationTarget.WidgetTarget(widget)) },
-                            onCycleSize = { onCycleWidgetSize(widget.id) },
-                            onMoveUp = { if (index > 0) onMoveWidget(widget.id, -1) },
-                            onMoveDown = { onMoveWidget(widget.id, 1) },
-                            onRemove = { onRemoveWidget(widget.id) }
+                            onRemove = { onRemoveWidget(widget.id) },
+                            dragController = dragController,
+                            dragPayload = dragPayload,
+                            pageIndex = pageIndex,
+                            slotIndex = effectiveSlot,
+                            forcedWidthDp = wDp,
+                            forcedHeightDp = hDp,
+                            isHiddenWhileDragged = draggedWidgetId == widget.id,
+                            modifier = posModifier
                         )
                     }
 
@@ -403,65 +514,160 @@ private fun HomeLayerPageContent(
                             glassOpacity = prefs.glassOpacity,
                             isEditMode = uiState.isEditMode,
                             onCustomize = { onCustomizeItem(ItemCustomizationTarget.WidgetTarget(widget)) },
-                            onCycleSize = { onCycleWidgetSize(widget.id) },
-                            onMoveUp = { if (index > 0) onMoveWidget(widget.id, -1) },
-                            onMoveDown = { onMoveWidget(widget.id, 1) },
-                            onRemove = { onRemoveWidget(widget.id) }
+                            onRemove = { onRemoveWidget(widget.id) },
+                            dragController = dragController,
+                            dragPayload = dragPayload,
+                            pageIndex = pageIndex,
+                            slotIndex = effectiveSlot,
+                            forcedWidthDp = wDp,
+                            forcedHeightDp = hDp,
+                            isHiddenWhileDragged = draggedWidgetId == widget.id,
+                            modifier = posModifier
                         )
                     }
                 }
             }
 
-            // Big Folders (2x1 / 2x2)
-            itemsIndexed(
-                items = bigNests,
-                key = { _, nest -> "big_nest_${pageIndex}_${nest.id}" }
-            ) { _, nest ->
-                val isMergeTarget =
-                    (hoveredDropTarget as? HomeDropTarget.AddToExistingNest)?.targetNestId == nest.id
-                OwlNestTile(
-                    nest = nest,
-                    appsInNest = nest.appKeys.mapNotNull { uiState.findApp(it) },
-                    globalIconShape = prefs.iconShape,
-                    iconSize = prefs.iconSizeDp.dp,
-                    showLabel = prefs.showAppLabels,
-                    glassOpacity = prefs.glassOpacity,
-                    isEditMode = uiState.isEditMode,
-                    onClick = { onOpenNest(nest) },
-                    onLongClick = { onCustomizeItem(ItemCustomizationTarget.NestTarget(nest)) },
-                    onLaunchAppDirectly = onLaunchApp,
-                    dragController = dragController,
-                    pageIndex = pageIndex,
-                    indexInPage = -1,
-                    isMergeHighlighted = isMergeTarget
-                )
+            // Persistent typed text pinned directly onto this Home page
+            HomeStickyTextLayer(
+                stickyText = stickyText,
+                isEditMode = uiState.isEditMode,
+                onMovePosition = { x, y -> onMoveStickyText(pageIndex, x, y) },
+                onTapToEdit = { onEditStickyText(pageIndex) },
+                onClearText = { onClearStickyText(pageIndex) }
+            )
+        }
+    } else {
+        Box(modifier = modifier) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Big Folders (2x1 / 2x2)
+                itemsIndexed(
+                    items = bigNests,
+                    key = { _, nest -> "big_nest_${pageIndex}_${nest.id}" }
+                ) { _, nest ->
+                    val isMergeTarget =
+                        (hoveredDropTarget as? HomeDropTarget.AddToExistingNest)?.targetNestId == nest.id
+                    OwlNestTile(
+                        nest = nest,
+                        appsInNest = nest.appKeys.mapNotNull { uiState.findApp(it) },
+                        globalIconShape = prefs.iconShape,
+                        iconSize = prefs.iconSizeDp.dp,
+                        showLabel = prefs.showAppLabels,
+                        glassOpacity = prefs.glassOpacity,
+                        isEditMode = uiState.isEditMode,
+                        onClick = { onOpenNest(nest) },
+                        onLongClick = { onCustomizeItem(ItemCustomizationTarget.NestTarget(nest)) },
+                        onLaunchAppDirectly = onLaunchApp,
+                        onDeleteInEditMode = { onDeleteNest(nest.id) },
+                        dragController = dragController,
+                        pageIndex = pageIndex,
+                        indexInPage = -1,
+                        isMergeHighlighted = isMergeTarget
+                    )
+                }
+
+                // Overflow Widgets on scrollable pages
+                itemsIndexed(
+                    items = pageWidgets,
+                    key = { _, item -> "p${pageIndex}_${item.id}" }
+                ) { _, widget ->
+                    val wDp = widget.customWidthDp?.dp
+                    val hDp = widget.customHeightDp?.dp
+                    val dragPayload = HomeDragPayload.Widget(
+                        widget = widget,
+                        sourcePage = pageIndex,
+                        previewWidthDp = wDp ?: 200.dp,
+                        previewHeightDp = hDp ?: 110.dp
+                    )
+                    when (widget.kind) {
+                        PlacedWidgetKind.OWL_NATIVE -> {
+                            OwlNativeWidgetCard(
+                                widget = widget,
+                                glassOpacity = prefs.glassOpacity,
+                                deviceStatus = uiState.deviceStatus,
+                                focusSecondsRemaining = uiState.focusSecondsRemaining,
+                                focusTimerRunning = uiState.focusTimerRunning,
+                                dispatchNoteText = prefs.dispatchNoteText,
+                                wisdomIndex = uiState.wisdomIndex,
+                                isEditMode = uiState.isEditMode,
+                                onToggleFocusTimer = onToggleFocusTimer,
+                                onResetFocusTimer = onResetFocusTimer,
+                                onToggleFlashlight = onToggleFlashlight,
+                                onOpenNoteEditor = onOpenNoteEditor,
+                                onCycleWisdom = onCycleWisdom,
+                                onPickGifForWidget = { uri -> onPickGifForWidget(widget.id, uri) },
+                                onCustomize = { onCustomizeItem(ItemCustomizationTarget.WidgetTarget(widget)) },
+                                onRemove = { onRemoveWidget(widget.id) },
+                                dragController = dragController,
+                                dragPayload = dragPayload,
+                                pageIndex = pageIndex,
+                                slotIndex = widget.slotIndex,
+                                forcedWidthDp = wDp,
+                                forcedHeightDp = hDp,
+                                isHiddenWhileDragged = draggedWidgetId == widget.id
+                            )
+                        }
+
+                        PlacedWidgetKind.ANDROID_APPWIDGET -> {
+                            SystemWidgetCard(
+                                widget = widget,
+                                widgetHost = widgetHost,
+                                glassOpacity = prefs.glassOpacity,
+                                isEditMode = uiState.isEditMode,
+                                onCustomize = { onCustomizeItem(ItemCustomizationTarget.WidgetTarget(widget)) },
+                                onRemove = { onRemoveWidget(widget.id) },
+                                dragController = dragController,
+                                dragPayload = dragPayload,
+                                pageIndex = pageIndex,
+                                slotIndex = widget.slotIndex,
+                                forcedWidthDp = wDp,
+                                forcedHeightDp = hDp,
+                                isHiddenWhileDragged = draggedWidgetId == widget.id
+                            )
+                        }
+                    }
+                }
+
+                // Free-Slot Grid Rows
+                items(
+                    count = allocation.totalRows,
+                    key = { row -> "p${pageIndex}_slotrow_$row" }
+                ) { row ->
+                    PortraitGridSlotRow(
+                        row = row,
+                        columns = columns,
+                        pageIndex = pageIndex,
+                        allocation = allocation,
+                        uiState = uiState,
+                        dragController = dragController,
+                        hoveredDropTarget = hoveredDropTarget,
+                        draggedAppKey = draggedAppKey,
+                        draggedNestId = draggedNestId,
+                        onLaunchApp = onLaunchApp,
+                        onShowAppMenu = onShowAppMenu,
+                        onUnpinHomeApp = onUnpinHomeApp,
+                        onDeleteNest = onDeleteNest,
+                        onCustomizeItem = onCustomizeItem,
+                        onOpenNest = onOpenNest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(86.dp)
+                    )
+                }
             }
 
-            // Free-Slot Grid Rows (empty slots remain droppable targets)
-            items(
-                count = allocation.totalRows,
-                key = { row -> "p${pageIndex}_slotrow_$row" }
-            ) { row ->
-                PortraitGridSlotRow(
-                    row = row,
-                    columns = columns,
-                    pageIndex = pageIndex,
-                    allocation = allocation,
-                    uiState = uiState,
-                    dragController = dragController,
-                    hoveredDropTarget = hoveredDropTarget,
-                    draggedAppKey = draggedAppKey,
-                    draggedNestId = draggedNestId,
-                    onLaunchApp = onLaunchApp,
-                    onShowAppMenu = onShowAppMenu,
-                    onUnpinHomeApp = onUnpinHomeApp,
-                    onCustomizeItem = onCustomizeItem,
-                    onOpenNest = onOpenNest,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(86.dp)
-                )
-            }
+            HomeStickyTextLayer(
+                stickyText = stickyText,
+                isEditMode = uiState.isEditMode,
+                onMovePosition = { x, y -> onMoveStickyText(pageIndex, x, y) },
+                onTapToEdit = { onEditStickyText(pageIndex) },
+                onClearText = { onClearStickyText(pageIndex) }
+            )
         }
     }
 }
@@ -480,6 +686,7 @@ private fun PortraitGridSlotRow(
     onLaunchApp: (AppInfo) -> Unit,
     onShowAppMenu: (AppInfo) -> Unit,
     onUnpinHomeApp: (AppInfo) -> Unit,
+    onDeleteNest: (String) -> Unit,
     onCustomizeItem: (ItemCustomizationTarget) -> Unit,
     onOpenNest: (OwlNest) -> Unit,
     modifier: Modifier = Modifier
@@ -497,6 +704,8 @@ private fun PortraitGridSlotRow(
                 is HomeDropTarget.MoveAppToSlot ->
                     hoveredDropTarget.targetPage == pageIndex && hoveredDropTarget.targetSlotIndex == slotIndex
                 is HomeDropTarget.MoveNestToSlot ->
+                    hoveredDropTarget.targetPage == pageIndex && hoveredDropTarget.targetSlotIndex == slotIndex
+                is HomeDropTarget.MoveWidgetToSlot ->
                     hoveredDropTarget.targetPage == pageIndex && hoveredDropTarget.targetSlotIndex == slotIndex
                 else -> false
             }
@@ -526,6 +735,7 @@ private fun PortraitGridSlotRow(
                                 onCustomizeItem(ItemCustomizationTarget.NestTarget(nest))
                             },
                             onLaunchAppDirectly = onLaunchApp,
+                            onDeleteInEditMode = { onDeleteNest(nest.id) },
                             dragController = dragController,
                             dragPayload = HomeDragPayload.Nest(
                                 nest = nest,
@@ -545,7 +755,9 @@ private fun PortraitGridSlotRow(
                     is HomeGridEntry.AppEntry -> {
                         val placed = entry.placed
                         val app = entry.app
-                        val itemSize = (prefs.iconSizeDp * placed.scale).coerceIn(36f, 84f).dp
+                        val itemW = (prefs.iconSizeDp * placed.effectiveWidthScale).coerceIn(32f, 200f).dp
+                        val itemH = (prefs.iconSizeDp * placed.effectiveHeightScale).coerceIn(32f, 200f).dp
+                        val itemSize = maxOf(itemW, itemH)
                         val effectiveShape = placed.shapeOverride ?: prefs.iconShape
                         val isMergeTarget =
                             (hoveredDropTarget as? HomeDropTarget.MergeAppsIntoFolder)?.targetAppKey == app.componentKey
@@ -553,6 +765,8 @@ private fun PortraitGridSlotRow(
                             app = app,
                             iconShape = effectiveShape,
                             iconSize = itemSize,
+                            iconWidth = itemW,
+                            iconHeight = itemH,
                             showFrameBackdrop = prefs.showIconFrameBackdrop,
                             showLabel = prefs.showAppLabels,
                             isEditMode = uiState.isEditMode,
@@ -569,6 +783,8 @@ private fun PortraitGridSlotRow(
                                 sourcePage = pageIndex,
                                 iconShape = effectiveShape,
                                 iconSize = itemSize,
+                                iconWidth = itemW,
+                                iconHeight = itemH,
                                 showFrameBackdrop = prefs.showIconFrameBackdrop
                             ),
                             pageIndex = pageIndex,

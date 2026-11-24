@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Dock
 import androidx.compose.material.icons.filled.FolderSpecial
@@ -46,6 +47,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -189,6 +191,7 @@ fun ItemCustomizationDialog(
     target: ItemCustomizationTarget,
     pageCount: Int,
     onDismiss: () -> Unit,
+    onOpenBetterEditor: (ItemCustomizationTarget) -> Unit,
     onUpdateApp: (PlacedAppItem) -> Unit,
     onRemoveApp: (AppInfo) -> Unit,
     onUpdateNest: (OwlNest) -> Unit,
@@ -232,6 +235,21 @@ fun ItemCustomizationDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                Button(
+                    onClick = { onOpenBetterEditor(target) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("better_editor_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CropFree,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = stringResource(R.string.better_editor_btn))
+                }
+
                 when (target) {
                     is ItemCustomizationTarget.AppTarget -> {
                         val item = target.item
@@ -341,7 +359,18 @@ fun ItemCustomizationDialog(
 
                     is ItemCustomizationTarget.WidgetTarget -> {
                         val w = target.widget
-                        val currentH = (w.customHeightDp ?: 140).toFloat()
+                        val currentW = (w.customWidthDp ?: 220).toFloat()
+                        Text(
+                            text = stringResource(R.string.widget_width_label, currentW.roundToInt()),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Slider(
+                            value = currentW,
+                            onValueChange = { onUpdateWidget(w.copy(customWidthDp = it.roundToInt())) },
+                            valueRange = 52f..330f
+                        )
+
+                        val currentH = (w.customHeightDp ?: 124).toFloat()
                         Text(
                             text = stringResource(R.string.widget_height_label, currentH.roundToInt()),
                             style = MaterialTheme.typography.bodyMedium
@@ -349,8 +378,35 @@ fun ItemCustomizationDialog(
                         Slider(
                             value = currentH,
                             onValueChange = { onUpdateWidget(w.copy(customHeightDp = it.roundToInt())) },
-                            valueRange = 70f..340f
+                            valueRange = 52f..340f
                         )
+
+                        Text(
+                            text = stringResource(R.string.item_shape_override),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        ShapePickerChips(
+                            selectedShape = w.shapeOverride,
+                            onSelect = { onUpdateWidget(w.copy(shapeOverride = it)) }
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onUpdateWidget(w.copy(transparentBackground = !w.transparentBackground)) }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(R.string.widget_transparent_bg_toggle),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Switch(
+                                checked = w.transparentBackground,
+                                onCheckedChange = { onUpdateWidget(w.copy(transparentBackground = it)) }
+                            )
+                        }
 
                         Text(
                             text = stringResource(R.string.widget_radius_label, w.cornerRadiusDp),
@@ -359,7 +415,7 @@ fun ItemCustomizationDialog(
                         Slider(
                             value = w.cornerRadiusDp.toFloat(),
                             onValueChange = { onUpdateWidget(w.copy(cornerRadiusDp = it.roundToInt())) },
-                            valueRange = 8f..36f
+                            valueRange = 4f..36f
                         )
 
                         OutlinedButton(
@@ -437,8 +493,10 @@ private fun ShapePickerChips(
         )
         listOf(
             IconShapeStyle.ORIGINAL to R.string.shape_original,
-            IconShapeStyle.SQUIRCLE to R.string.shape_squircle,
+            IconShapeStyle.SQUARE to R.string.shape_square,
             IconShapeStyle.CIRCLE to R.string.shape_circle,
+            IconShapeStyle.TRIANGLE to R.string.shape_triangle,
+            IconShapeStyle.SQUIRCLE to R.string.shape_squircle,
             IconShapeStyle.ROUNDED to R.string.shape_rounded,
             IconShapeStyle.FEATHER to R.string.shape_feather,
             IconShapeStyle.SHIELD to R.string.shape_shield

@@ -4,7 +4,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -44,19 +48,36 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.model.DeviceStatus
+import com.example.model.IconShapeStyle
 import com.example.model.OwlNativeWidgetType
 import com.example.model.PlacedWidget
 import com.example.model.WidgetSize
@@ -81,10 +102,14 @@ fun OwlNativeWidgetCard(
     onCycleWisdom: () -> Unit,
     onPickGifForWidget: (android.net.Uri) -> Unit,
     onCustomize: () -> Unit,
-    onCycleSize: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
     onRemove: () -> Unit,
+    dragController: HomeDragController? = null,
+    dragPayload: HomeDragPayload.Widget? = null,
+    pageIndex: Int = 0,
+    slotIndex: Int = -1,
+    forcedWidthDp: Dp? = null,
+    forcedHeightDp: Dp? = null,
+    isHiddenWhileDragged: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val gifPicker = rememberLauncherForActivityResult(
@@ -93,79 +118,181 @@ fun OwlNativeWidgetCard(
         uri?.let { onPickGifForWidget(it) }
     }
 
-    val targetHeight = widget.customHeightDp?.dp ?: when (widget.size) {
+    val targetHeight = forcedHeightDp ?: widget.customHeightDp?.dp ?: when (widget.size) {
         WidgetSize.COMPACT -> 84.dp
-        WidgetSize.WIDE -> if (widget.nativeType == OwlNativeWidgetType.GIF_STICKER) 168.dp else 100.dp
-        WidgetSize.TALL -> 196.dp
+        WidgetSize.WIDE -> if (widget.nativeType == OwlNativeWidgetType.GIF_STICKER) 148.dp else 96.dp
+        WidgetSize.TALL -> 184.dp
     }
 
-    val shape = RoundedCornerShape(widget.cornerRadiusDp.dp)
+    val shape = when (val override = widget.shapeOverride) {
+        null, IconShapeStyle.ORIGINAL -> RoundedCornerShape(widget.cornerRadiusDp.dp)
+        else -> override.toComposeShape()
+    }
 
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag("owl_widget_${widget.id}"),
-        shape = shape,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = glassOpacity),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (isEditMode) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
+    val surfaceColor = if (widget.transparentBackground) {
+        Color.Transparent
+    } else {
+        MaterialTheme.colorScheme.surface.copy(alpha = glassOpacity)
+    }
+
+    val borderStroke = when {
+        isEditMode -> BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+        widget.transparentBackground -> null
+        else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
+    }
+
+    var boundsInRoot by remember { mutableStateOf(Rect.Zero) }
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+    val touchSlopPx = with(density) { 10.dp.toPx() }
+    val longPressMs = 360L
+
+    val latestController by rememberUpdatedState(dragController)
+    val latestPayload by rememberUpdatedState(dragPayload)
+    val latestCustomize by rememberUpdatedState(onCustomize)
+    val latestEditMode by rememberUpdatedState(isEditMode)
+
+    if (dragController != null && dragPayload != null) {
+        DisposableEffect(dragController, pageIndex, widget.id) {
+            onDispose {
+                dragController.widgetSlots.remove("${pageIndex}_${widget.id}")
             }
-        ),
-        tonalElevation = 4.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = targetHeight)
-        ) {
-            if (widget.gifPath != null && widget.nativeType != OwlNativeWidgetType.GIF_STICKER) {
-                AnimatedGifMedia(
-                    filePath = widget.gifPath,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clip(shape)
-                        .graphicsLayer { alpha = 0.28f }
+        }
+    }
+
+    val dragModifier = if (dragController != null && dragPayload != null) {
+        Modifier.pointerInput(widget.id, pageIndex) {
+            awaitEachGesture {
+                val down = awaitFirstDown(
+                    requireUnconsumed = false,
+                    pass = PointerEventPass.Initial
                 )
-            }
+                val downTime = System.currentTimeMillis()
+                var lastLocalPos = down.position
+                var consumedByBadge = false
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-            ) {
-                if (isEditMode) {
-                    WidgetEditHeader(
-                        size = widget.size,
-                        onCustomize = onCustomize,
-                        onCycleSize = onCycleSize,
-                        onMoveUp = onMoveUp,
-                        onMoveDown = onMoveDown,
-                        onRemove = onRemove
+                while (true) {
+                    val elapsed = System.currentTimeMillis() - downTime
+                    val remaining = (longPressMs - elapsed).coerceAtLeast(1L)
+                    val event = withTimeoutOrNull(remaining) {
+                        awaitPointerEvent(pass = PointerEventPass.Initial)
+                    }
+
+                    if (event == null) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val controller = latestController
+                        val payload = latestPayload
+                        if (controller != null && payload != null && boundsInRoot != Rect.Zero) {
+                            controller.startDrag(
+                                payload = payload,
+                                pointerId = down.id,
+                                pointerPosInRoot = boundsInRoot.topLeft + lastLocalPos,
+                                tileBoundsInRoot = boundsInRoot
+                            )
+                        }
+                        break
+                    }
+
+                    val change = event.changes.firstOrNull { it.id == down.id }
+                        ?: event.changes.firstOrNull()
+                    if (change == null) break
+                    lastLocalPos = change.position
+                    if (change.isConsumed) consumedByBadge = true
+                    val dist = (change.position - down.position).getDistance()
+                    if (!change.pressed) {
+                        if (latestEditMode && !consumedByBadge && dist < touchSlopPx) {
+                            change.consume()
+                            latestCustomize()
+                        }
+                        break
+                    } else if (dist > touchSlopPx) {
+                        break
+                    }
+                }
+            }
+        }
+    } else {
+        Modifier
+    }
+
+    val sizeModifier = if (forcedWidthDp != null) {
+        modifier
+            .width(forcedWidthDp)
+            .height(targetHeight)
+    } else if (widget.customWidthDp != null) {
+        modifier
+            .width(widget.customWidthDp.dp)
+            .height(targetHeight)
+    } else {
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = targetHeight)
+    }
+
+    Box(
+        modifier = sizeModifier
+            .graphicsLayer {
+                alpha = if (isHiddenWhileDragged) 0f else 1f
+            }
+            .onGloballyPositioned { coords ->
+                val bounds = coords.boundsInRoot()
+                boundsInRoot = bounds
+                if (dragController != null && dragPayload != null) {
+                    dragController.registerWidgetSlot(
+                        widgetId = widget.id,
+                        pageIndex = pageIndex,
+                        slotIndex = slotIndex,
+                        bounds = bounds
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+            .then(dragModifier)
+            .testTag("owl_widget_${widget.id}")
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = shape,
+            color = surfaceColor,
+            border = borderStroke,
+            tonalElevation = if (widget.transparentBackground) 0.dp else 4.dp
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(shape)
+            ) {
+                if (widget.gifPath != null && widget.nativeType != OwlNativeWidgetType.GIF_STICKER) {
+                    AnimatedGifMedia(
+                        filePath = widget.gifPath,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(shape)
+                            .graphicsLayer { alpha = 0.28f }
+                    )
                 }
 
-                when (widget.nativeType) {
-                    OwlNativeWidgetType.GIF_STICKER -> {
-                        val gifPath = widget.gifPath
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(targetHeight)
-                                .clip(RoundedCornerShape((widget.cornerRadiusDp - 6).coerceAtLeast(8).dp))
-                                .clickable {
-                                    gifPicker.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    when (widget.nativeType) {
+                        OwlNativeWidgetType.GIF_STICKER -> {
+                            val gifPath = widget.gifPath
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(shape)
+                                    .clickable {
+                                        gifPicker.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
                             if (gifPath != null) {
                                 AnimatedGifMedia(
                                     filePath = gifPath,
@@ -415,6 +542,44 @@ fun OwlNativeWidgetCard(
                         }
                     }
                 }
+            }
+        }
+        }
+
+        if (isEditMode) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.error)
+                    .clickable(onClick = onRemove),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(4.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable(onClick = onCustomize),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Tune,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(14.dp)
+                )
             }
         }
     }

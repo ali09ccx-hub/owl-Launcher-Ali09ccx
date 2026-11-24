@@ -47,6 +47,7 @@ fun OwlGestureOverlay(
     val edgeThresholdPx = with(density) { 26.dp.toPx() }
     val swipeThresholdPx = with(density) { 44.dp.toPx() }
     val tapSlopPx = with(density) { 18.dp.toPx() }
+    val multiFingerTapSlopPx = with(density) { 64.dp.toPx() }
     val longPressTimeoutMs = 520L
     val swipeUpHoldDelayMs = 230L
     val multiTapWindowMs = 280L
@@ -315,13 +316,21 @@ fun OwlGestureOverlay(
                                 }
                             }
                             else -> {
-                                if (maxTravel < tapSlopPx) {
-                                    latestOnGesture(GestureId.FOUR_F_TAP)
-                                } else if (absY > swipeThresholdPx) {
-                                    latestOnGesture(
-                                        if (totalPan.y < 0f) GestureId.FOUR_F_SWIPE_UP
-                                        else GestureId.FOUR_F_SWIPE_DOWN
-                                    )
+                                when {
+                                    maxPointers >= 8 -> {
+                                        if (maxTravel < multiFingerTapSlopPx) {
+                                            latestOnGesture(GestureId.EIGHT_F_TAP)
+                                        }
+                                    }
+                                    maxTravel < multiFingerTapSlopPx -> {
+                                        latestOnGesture(GestureId.FOUR_F_TAP)
+                                    }
+                                    absY > swipeThresholdPx -> {
+                                        latestOnGesture(
+                                            if (totalPan.y < 0f) GestureId.FOUR_F_SWIPE_UP
+                                            else GestureId.FOUR_F_SWIPE_DOWN
+                                        )
+                                    }
                                 }
                             }
                         }

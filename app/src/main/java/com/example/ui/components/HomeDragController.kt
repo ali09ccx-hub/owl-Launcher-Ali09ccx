@@ -59,6 +59,7 @@ import com.example.model.AppInfo
 import com.example.model.IconShapeStyle
 import com.example.model.OwlNest
 import com.example.model.PlacedAppItem
+import com.example.model.PlacedWidget
 import kotlinx.coroutines.delay
 import kotlin.math.hypot
 
@@ -137,6 +138,8 @@ sealed interface HomeDragPayload {
         val sourcePage: Int,
         val iconShape: IconShapeStyle,
         val iconSize: Dp,
+        val iconWidth: Dp = iconSize,
+        val iconHeight: Dp = iconSize,
         val showFrameBackdrop: Boolean
     ) : HomeDragPayload
 
@@ -148,6 +151,13 @@ sealed interface HomeDragPayload {
         val iconSize: Dp,
         val glassOpacity: Float
     ) : HomeDragPayload
+
+    data class Widget(
+        val widget: PlacedWidget,
+        val sourcePage: Int,
+        val previewWidthDp: Dp,
+        val previewHeightDp: Dp
+    ) : HomeDragPayload
 }
 
 sealed interface HomeDropTarget {
@@ -155,6 +165,7 @@ sealed interface HomeDropTarget {
     data class AddToExistingNest(val targetNestId: String) : HomeDropTarget
     data class MoveAppToSlot(val targetPage: Int, val targetSlotIndex: Int) : HomeDropTarget
     data class MoveNestToSlot(val targetPage: Int, val targetSlotIndex: Int) : HomeDropTarget
+    data class MoveWidgetToSlot(val targetPage: Int, val targetSlotIndex: Int) : HomeDropTarget
 }
 
 data class RegisteredAppSlot(
@@ -168,6 +179,13 @@ data class RegisteredNestSlot(
     val nestId: String,
     val pageIndex: Int,
     val indexInPage: Int,
+    val boundsInRoot: Rect
+)
+
+data class RegisteredWidgetSlot(
+    val widgetId: String,
+    val pageIndex: Int,
+    val slotIndex: Int,
     val boundsInRoot: Rect
 )
 
@@ -197,6 +215,7 @@ class HomeDragController {
 
     val appSlots = mutableStateMapOf<String, RegisteredAppSlot>()
     val nestSlots = mutableStateMapOf<String, RegisteredNestSlot>()
+    val widgetSlots = mutableStateMapOf<String, RegisteredWidgetSlot>()
     val emptySlots = mutableStateMapOf<String, RegisteredEmptySlot>()
 
     val isDragging: Boolean get() = activeDrag != null
@@ -225,6 +244,20 @@ class HomeDragController {
             nestId = nestId,
             pageIndex = pageIndex,
             indexInPage = indexInPage,
+            boundsInRoot = bounds
+        )
+    }
+
+    fun registerWidgetSlot(
+        widgetId: String,
+        pageIndex: Int,
+        slotIndex: Int,
+        bounds: Rect
+    ) {
+        widgetSlots["${pageIndex}_$widgetId"] = RegisteredWidgetSlot(
+            widgetId = widgetId,
+            pageIndex = pageIndex,
+            slotIndex = slotIndex,
             boundsInRoot = bounds
         )
     }
@@ -368,6 +401,11 @@ class HomeDragController {
                 val targetSlot = findNearestGridSlotIndex(currentPage, dragCenterInRoot)
                 HomeDropTarget.MoveNestToSlot(currentPage, targetSlot)
             }
+
+            is HomeDragPayload.Widget -> {
+                val targetSlot = findNearestGridSlotIndex(currentPage, dragCenterInRoot)
+                HomeDropTarget.MoveWidgetToSlot(currentPage, targetSlot)
+            }
         }
     }
 }
@@ -433,6 +471,7 @@ fun HomeDragOverlayHost(
     onAddNewPageAndSwitch: () -> Unit,
     onTapHoldAppNoMove: (AppInfo) -> Unit,
     onTapHoldNestNoMove: (OwlNest) -> Unit,
+    onTapHoldWidgetNoMove: (PlacedWidget) -> Unit = {},
     onCommitDrop: (HomeDragPayload, HomeDropTarget) -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable (hoveredDropTarget: HomeDropTarget?) -> Unit
@@ -451,6 +490,7 @@ fun HomeDragOverlayHost(
     val latestOnAddNewPage by rememberUpdatedState(onAddNewPageAndSwitch)
     val latestOnTapHoldApp by rememberUpdatedState(onTapHoldAppNoMove)
     val latestOnTapHoldNest by rememberUpdatedState(onTapHoldNestNoMove)
+    val latestOnTapHoldWidget by rememberUpdatedState(onTapHoldWidgetNoMove)
     val latestOnCommitDrop by rememberUpdatedState(onCommitDrop)
 
     val active = controller.activeDrag
@@ -540,6 +580,7 @@ fun HomeDragOverlayHost(
                                         when (val p = finished.payload) {
                                             is HomeDragPayload.App -> latestOnTapHoldApp(p.app)
                                             is HomeDragPayload.Nest -> latestOnTapHoldNest(p.nest)
+                                            is HomeDragPayload.Widget -> latestOnTapHoldWidget(p.widget)
                                         }
                                     } else {
                                         val finalTarget = controller.resolveDropTarget(
@@ -609,30 +650,37 @@ fun HomeDragOverlayHost(
                     )
                 }
 
-                // Floating Ghost Icon strictly locked to finger in physical screen coordinates
+                // Floating Ghost Icon / Widget strictly locked to finger in physical screen coordinates
                 if (active != null) {
                     val containerTopLeft = controller.containerBoundsInRoot.topLeft
                     val localCenter = active.currentCenterInRoot - containerTopLeft
                     val isMergePreview = hoveredTarget is HomeDropTarget.MergeAppsIntoFolder ||
                         hoveredTarget is HomeDropTarget.AddToExistingNest
 
-                    val iconBoxDp = when (val p = active.payload) {
-                        is HomeDragPayload.App -> p.iconSize + 16.dp
-                        is HomeDragPayload.Nest -> p.iconSize + 16.dp
+                    val ghostWidthDp = when (val p = active.payload) {
+                        is HomeDragPayload.App -> p.iconWidth + 16.dp
+                        is HomeDragPayload.Nest -> (p.iconSize * p.nest.widthScale + 16.dp).coerceIn(48.dp, 260.dp)
+                        is HomeDragPayload.Widget -> p.previewWidthDp.coerceIn(56.dp, 260.dp)
                     }
-                    val iconBoxPx = with(density) { iconBoxDp.toPx() }
+                    val ghostHeightDp = when (val p = active.payload) {
+                        is HomeDragPayload.App -> p.iconHeight + 16.dp
+                        is HomeDragPayload.Nest -> (p.iconSize * p.nest.heightScale + 16.dp).coerceIn(48.dp, 260.dp)
+                        is HomeDragPayload.Widget -> p.previewHeightDp.coerceIn(56.dp, 220.dp)
+                    }
+                    val ghostWidthPx = with(density) { ghostWidthDp.toPx() }
+                    val ghostHeightPx = with(density) { ghostHeightDp.toPx() }
 
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .zIndex(50f)
-                            .size(iconBoxDp)
+                            .size(width = ghostWidthDp, height = ghostHeightDp)
                             .graphicsLayer {
-                                translationX = localCenter.x - iconBoxPx / 2f
-                                translationY = localCenter.y - iconBoxPx / 2f
-                                scaleX = if (isMergePreview) 0.94f else 1.18f
-                                scaleY = if (isMergePreview) 0.94f else 1.18f
-                                alpha = 0.95f
+                                translationX = localCenter.x - ghostWidthPx / 2f
+                                translationY = localCenter.y - ghostHeightPx / 2f
+                                scaleX = if (isMergePreview) 0.94f else 1.08f
+                                scaleY = if (isMergePreview) 0.94f else 1.08f
+                                alpha = 0.92f
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -656,6 +704,8 @@ fun HomeDragOverlayHost(
                                     app = p.app,
                                     iconShape = p.iconShape,
                                     iconSize = p.iconSize,
+                                    iconWidth = p.iconWidth,
+                                    iconHeight = p.iconHeight,
                                     showFrameBackdrop = p.showFrameBackdrop
                                 )
                             }
@@ -668,6 +718,27 @@ fun HomeDragOverlayHost(
                                     iconSize = p.iconSize,
                                     glassOpacity = p.glassOpacity
                                 )
+                            }
+
+                            is HomeDragPayload.Widget -> {
+                                val shape = when (val ov = p.widget.shapeOverride) {
+                                    null, IconShapeStyle.ORIGINAL -> RoundedCornerShape(p.widget.cornerRadiusDp.dp)
+                                    else -> ov.toComposeShape()
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(shape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+                                        .border(2.dp, MaterialTheme.colorScheme.primary, shape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = p.widget.nativeType?.name ?: "WIDGET",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
                     }
@@ -690,9 +761,11 @@ fun NestVisualPreview(
     } else {
         effectiveShape.toComposeShape()
     }
+    val wDp = (iconSize * nest.widthScale + 4.dp).coerceIn(38.dp, 240.dp)
+    val hDp = (iconSize * nest.heightScale + 4.dp).coerceIn(38.dp, 240.dp)
     Box(
         modifier = Modifier
-            .size(iconSize + 4.dp)
+            .size(width = wDp, height = hDp)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface.copy(alpha = glassOpacity))
             .border(

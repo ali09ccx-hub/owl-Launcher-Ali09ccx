@@ -94,57 +94,53 @@ fun WallpaperCanvas(
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
 
-        Crossfade(
-            targetState = isLandscape,
-            animationSpec = tween(180),
-            label = "orientation_wallpaper_crossfade"
-        ) { landscapeMode ->
-            val cfg = if (landscapeMode) landscapeConfig else portraitConfig
-            val contentScale = when (cfg.scaleMode) {
-                WallpaperScaleMode.CROP -> ContentScale.Crop
-                WallpaperScaleMode.FIT -> ContentScale.Fit
-                WallpaperScaleMode.STRETCH -> ContentScale.FillBounds
+        val cfg = if (isLandscape) landscapeConfig else portraitConfig
+        val contentScale = when (cfg.scaleMode) {
+            WallpaperScaleMode.CROP -> ContentScale.Crop
+            WallpaperScaleMode.FIT -> ContentScale.Fit
+            WallpaperScaleMode.STRETCH -> ContentScale.FillBounds
+        }
+        val parallaxShift = -pageParallaxFraction * 28f
+        val transformModifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                scaleX = cfg.zoom * 1.03f
+                scaleY = cfg.zoom * 1.03f
+                translationX = cfg.offsetX * widthPx * 0.35f + parallaxShift
+                translationY = cfg.offsetY * heightPx * 0.35f
             }
-            val parallaxShift = -pageParallaxFraction * 28f
-            val transformModifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = cfg.zoom * 1.03f
-                    scaleY = cfg.zoom * 1.03f
-                    translationX = cfg.offsetX * widthPx * 0.35f + parallaxShift
-                    translationY = cfg.offsetY * heightPx * 0.35f
-                }
 
-            val customFile = cfg.customFilePath?.let { File(it) }?.takeIf { it.exists() }
-            if (customFile != null) {
-                val targetW = widthPx.toInt().coerceIn(720, 1440)
-                val targetH = heightPx.toInt().coerceIn(720, 2560)
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(customFile)
-                        .size(targetW, targetH)
-                        .setParameter("v", cfg.version, memoryCacheKey = null)
-                        .crossfade(false)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = contentScale,
-                    alignment = Alignment.Center,
-                    modifier = transformModifier
-                )
+        val customFile = cfg.customFilePath?.let { File(it) }?.takeIf { it.exists() }
+        if (customFile != null) {
+            val targetW = widthPx.toInt().coerceIn(720, 1440)
+            val targetH = heightPx.toInt().coerceIn(720, 2560)
+            val cacheKey = "${customFile.absolutePath}_${cfg.version}"
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(customFile)
+                    .size(targetW, targetH)
+                    .memoryCacheKey(cacheKey)
+                    .diskCacheKey(cacheKey)
+                    .crossfade(false)
+                    .build(),
+                contentDescription = null,
+                contentScale = contentScale,
+                alignment = Alignment.Center,
+                modifier = transformModifier
+            )
+        } else {
+            val resId = if (isLandscape) {
+                R.drawable.img_wallpaper_landscape_owl
             } else {
-                val resId = if (landscapeMode) {
-                    R.drawable.img_wallpaper_landscape_owl
-                } else {
-                    R.drawable.img_wallpaper_portrait_owl
-                }
-                Image(
-                    painter = painterResource(id = resId),
-                    contentDescription = null,
-                    contentScale = contentScale,
-                    alignment = Alignment.Center,
-                    modifier = transformModifier
-                )
+                R.drawable.img_wallpaper_portrait_owl
             }
+            Image(
+                painter = painterResource(id = resId),
+                contentDescription = null,
+                contentScale = contentScale,
+                alignment = Alignment.Center,
+                modifier = transformModifier
+            )
         }
 
         // Subtle atmospheric legibility gradient + user dim + Night Owl warmth

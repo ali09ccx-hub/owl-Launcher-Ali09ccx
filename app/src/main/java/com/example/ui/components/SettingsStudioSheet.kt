@@ -777,8 +777,10 @@ fun SettingsStudioSheet(
                             ) {
                                 listOf(
                                     IconShapeStyle.ORIGINAL to R.string.shape_original,
-                                    IconShapeStyle.SQUIRCLE to R.string.shape_squircle,
+                                    IconShapeStyle.SQUARE to R.string.shape_square,
                                     IconShapeStyle.CIRCLE to R.string.shape_circle,
+                                    IconShapeStyle.TRIANGLE to R.string.shape_triangle,
+                                    IconShapeStyle.SQUIRCLE to R.string.shape_squircle,
                                     IconShapeStyle.ROUNDED to R.string.shape_rounded,
                                     IconShapeStyle.FEATHER to R.string.shape_feather,
                                     IconShapeStyle.SHIELD to R.string.shape_shield
@@ -1087,6 +1089,7 @@ private fun gestureLabelRes(id: GestureId): Int = when (id) {
     GestureId.FOUR_F_SWIPE_UP -> R.string.g_4f_swipe_up
     GestureId.FOUR_F_SWIPE_DOWN -> R.string.g_4f_swipe_down
     GestureId.FOUR_F_TAP -> R.string.g_4f_tap
+    GestureId.EIGHT_F_TAP -> R.string.g_8f_tap
     GestureId.EDGE_LEFT_IN -> R.string.g_edge_left_in
     GestureId.EDGE_RIGHT_IN -> R.string.g_edge_right_in
 }
@@ -1109,6 +1112,7 @@ private fun gestureActionLabelRes(action: GestureActionType): Int = when (action
     GestureActionType.TOGGLE_SAFETY -> R.string.ga_toggle_safety
     GestureActionType.TOGGLE_TORCH -> R.string.ga_toggle_torch
     GestureActionType.OPEN_NOTE -> R.string.ga_open_note
+    GestureActionType.OPEN_HOME_TYPER -> R.string.ga_open_home_typer
     GestureActionType.EXPAND_NOTIFICATIONS -> R.string.ga_expand_notifications
     GestureActionType.OPEN_DEVICE_SETTINGS -> R.string.ga_open_device_settings
     GestureActionType.LAUNCH_APP -> R.string.ga_launch_app

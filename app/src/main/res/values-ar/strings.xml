@@ -107,12 +107,25 @@
 
     <string name="item_editor_title">تخصيص العنصر</string>
     <string name="item_scale_label">الحجم: %1$.2fx</string>
+    <string name="item_width_scale_label">العرض: %1$.2fx</string>
+    <string name="item_height_scale_label">الطول: %1$.2fx</string>
     <string name="item_shape_override">شكل العنصر</string>
     <string name="shape_inherit">حسب الإعداد العام</string>
     <string name="move_to_prev_page">نقل للطبقة السابقة</string>
     <string name="move_to_next_page">نقل للطبقة التالية</string>
     <string name="attach_gif_btn">إضافة صورة GIF متحركة</string>
     <string name="clear_gif_btn">إزالة GIF</string>
+
+    <string name="better_editor_btn">التعديل الأفضل (التحكم بالخطوط والشكل)</string>
+    <string name="better_editor_title">تعديل الحجم والشكل الحر</string>
+    <string name="better_editor_hint">اسحب الخطوط البيضاء على الحواف لتغيير الطول والعرض بحرية</string>
+    <string name="preset_small_square">مربع صغير</string>
+    <string name="preset_medium_square">مربع</string>
+    <string name="preset_wide_rect">مستطيل عريض</string>
+    <string name="preset_tall_rect">مستطيل طويل</string>
+    <string name="preset_reset">افتراضي</string>
+    <string name="widget_transparent_bg_toggle">خلفية شفافة (بدون حواف سوداء)</string>
+    <string name="widget_width_label">عرض مخصص: %1$ddp</string>
 
     <!-- Owl Nests (Folders) -->
     <string name="create_nest">مجلد جديد</string>
@@ -225,8 +238,10 @@
 
     <string name="icon_shape_label">شكل إطار الأيقونات (يحافظ على صورة التطبيق الأصلية)</string>
     <string name="shape_original">الأصلي</string>
+    <string name="shape_square">مربع</string>
     <string name="shape_squircle">مربع مرن</string>
-    <string name="shape_circle">دائري</string>
+    <string name="shape_circle">دائرة</string>
+    <string name="shape_triangle">مثلث</string>
     <string name="shape_rounded">دائري الحواف</string>
     <string name="shape_feather">ريشة البومة</string>
     <string name="shape_shield">درع البومة</string>
@@ -280,6 +295,7 @@
     <string name="g_4f_swipe_up">سحب بأربعة أصابع للأعلى</string>
     <string name="g_4f_swipe_down">سحب بأربعة أصابع للأسفل</string>
     <string name="g_4f_tap">نقر بأربعة أصابع</string>
+    <string name="g_8f_tap">نقر بثمانية أصابع</string>
     <string name="g_edge_left_in">سحب من الحافة اليسرى</string>
     <string name="g_edge_right_in">سحب من الحافة اليمنى</string>
 
@@ -300,8 +316,14 @@
     <string name="ga_toggle_safety">تبديل درع السلامة (حماية فورية)</string>
     <string name="ga_toggle_torch">تشغيل/إطفاء الكشاف</string>
     <string name="ga_open_note">فتح المذكرة السريعة</string>
+    <string name="ga_open_home_typer">إظهار لوحة المفاتيح والكتابة على الرئيسية</string>
     <string name="ga_expand_notifications">سحب شريط الإشعارات</string>
     <string name="ga_open_device_settings">فتح إعدادات الهاتف</string>
     <string name="ga_launch_app">فتح تطبيق محدد…</string>
     <string name="ga_launch_app_named">فتح: %1$s</string>
+
+    <!-- Live Home Keyboard Typer -->
+    <string name="home_typer_hint">اكتب أي نص هنا ليظهر ويبقى على الشاشة الرئيسية…</string>
+    <string name="home_typer_clear">مسح</string>
+    <string name="home_typer_keep">تثبيت على الشاشة</string>
 </resources>

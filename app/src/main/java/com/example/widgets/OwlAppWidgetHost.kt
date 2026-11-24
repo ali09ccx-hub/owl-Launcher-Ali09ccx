@@ -12,7 +12,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.os.Bundle
 import android.util.DisplayMetrics
+import android.view.ViewGroup
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.example.model.AvailableWidgetProvider
@@ -28,6 +30,7 @@ class OwlAppWidgetHost(private val context: Context) {
 
     private val appWidgetManager: AppWidgetManager = AppWidgetManager.getInstance(context)
     private val appWidgetHost: AppWidgetHost = AppWidgetHost(context.applicationContext, HOST_ID)
+    private val hostViewCache = HashMap<Int, AppWidgetHostView>()
 
     fun startListening() {
         try {
@@ -46,6 +49,7 @@ class OwlAppWidgetHost(private val context: Context) {
     fun allocateWidgetId(): Int = appWidgetHost.allocateAppWidgetId()
 
     fun deleteWidgetId(appWidgetId: Int) {
+        hostViewCache.remove(appWidgetId)
         if (appWidgetId > 0) {
             try {
                 appWidgetHost.deleteAppWidgetId(appWidgetId)
@@ -97,9 +101,31 @@ class OwlAppWidgetHost(private val context: Context) {
     }
 
     fun createHostView(appWidgetId: Int, providerInfo: AppWidgetProviderInfo): AppWidgetHostView {
+        val existing = hostViewCache[appWidgetId]
+        if (existing != null) {
+            (existing.parent as? ViewGroup)?.removeView(existing)
+            return existing
+        }
         val view = appWidgetHost.createView(context, appWidgetId, providerInfo)
         view.setAppWidget(appWidgetId, providerInfo)
+        view.setPadding(0, 0, 0, 0)
+        hostViewCache[appWidgetId] = view
         return view
+    }
+
+    fun updateWidgetSize(view: AppWidgetHostView, widthDp: Int, heightDp: Int) {
+        try {
+            val safeW = widthDp.coerceAtLeast(48)
+            val safeH = heightDp.coerceAtLeast(48)
+            val opts = Bundle().apply {
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, safeW)
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, safeW)
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, safeH)
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, safeH)
+            }
+            view.updateAppWidgetOptions(opts)
+        } catch (_: Exception) {
+        }
     }
 
     suspend fun loadAvailableProviders(): List<AvailableWidgetProvider> = withContext(Dispatchers.IO) {

@@ -16,6 +16,7 @@ import com.example.model.FolderSizeMode
 import com.example.model.GestureActionType
 import com.example.model.GestureBinding
 import com.example.model.GestureId
+import com.example.model.HomeStickyText
 import com.example.model.IconShapeStyle
 import com.example.model.LauncherPreferencesState
 import com.example.model.LayerTransitionStyle
@@ -98,10 +99,12 @@ class LauncherPreferencesRepository(private val context: Context) {
         val FOCUS_ESSENTIAL_APPS = stringSetPreferencesKey("focus_essential_apps")
         val OWL_NESTS_JSON = stringPreferencesKey("owl_nests_json")
         val PLACED_WIDGETS_JSON = stringPreferencesKey("placed_widgets_json")
+        val STICKY_TEXTS_JSON = stringPreferencesKey("sticky_texts_v1_json")
         val WIDGETS_INITIALIZED = booleanPreferencesKey("widgets_initialized")
         val RECENT_APPS_JSON = stringPreferencesKey("recent_apps_v1_json")
         val GESTURES_JSON = stringPreferencesKey("gestures_v1_json")
         val CLEAN_HOME_V2_MIGRATED = booleanPreferencesKey("clean_home_v2_migrated")
+        val TYPER_GESTURE_V1_MIGRATED = booleanPreferencesKey("typer_gesture_v1_migrated")
     }
 
     val preferencesFlow: Flow<LauncherPreferencesState> = context.launcherDataStore.data.map { prefs ->
@@ -172,6 +175,7 @@ class LauncherPreferencesRepository(private val context: Context) {
             focusEssentialAppKeys = prefs[Keys.FOCUS_ESSENTIAL_APPS] ?: emptySet(),
             owlNests = decodeNests(prefs[Keys.OWL_NESTS_JSON]),
             placedWidgets = placedWidgets,
+            stickyTexts = decodeStickyTexts(prefs[Keys.STICKY_TEXTS_JSON]),
             recentApps = decodeRecentApps(prefs[Keys.RECENT_APPS_JSON]),
             gestureBindings = decodeGestures(prefs[Keys.GESTURES_JSON])
         )
@@ -209,6 +213,13 @@ class LauncherPreferencesRepository(private val context: Context) {
                     prefs[Keys.PLACED_WIDGETS_JSON] = encodeWidgets(filteredWidgets)
                 }
                 prefs[Keys.CLEAN_HOME_V2_MIGRATED] = true
+            }
+            if (prefs[Keys.TYPER_GESTURE_V1_MIGRATED] != true) {
+                val currentGestures = decodeGestures(prefs[Keys.GESTURES_JSON]).toMutableMap()
+                currentGestures[GestureId.FOUR_F_TAP] = GestureBinding(GestureActionType.OPEN_HOME_TYPER)
+                currentGestures[GestureId.EIGHT_F_TAP] = GestureBinding(GestureActionType.OPEN_HOME_TYPER)
+                prefs[Keys.GESTURES_JSON] = encodeGestures(currentGestures)
+                prefs[Keys.TYPER_GESTURE_V1_MIGRATED] = true
             }
         }
     }
@@ -402,6 +413,12 @@ class LauncherPreferencesRepository(private val context: Context) {
         }
     }
 
+    suspend fun setStickyTexts(texts: List<HomeStickyText>) {
+        context.launcherDataStore.edit { prefs ->
+            prefs[Keys.STICKY_TEXTS_JSON] = encodeStickyTexts(texts)
+        }
+    }
+
     suspend fun setGestureBindings(bindings: Map<GestureId, GestureBinding>) {
         context.launcherDataStore.edit { prefs ->
             prefs[Keys.GESTURES_JSON] = encodeGestures(bindings)
@@ -442,6 +459,8 @@ class LauncherPreferencesRepository(private val context: Context) {
                 put("key", item.componentKey)
                 put("page", item.pageIndex)
                 put("scale", item.scale.toDouble())
+                put("wScale", item.widthScale.toDouble())
+                put("hScale", item.heightScale.toDouble())
                 put("shape", item.shapeOverride?.name ?: "")
                 put("slot", item.slotIndex)
                 put("lSlot", item.landscapeSlotIndex)
@@ -464,11 +483,16 @@ class LauncherPreferencesRepository(private val context: Context) {
                     val shape = if (shapeRaw.isNotBlank()) {
                         shapeRaw.toEnumOrDefault(IconShapeStyle.ORIGINAL)
                     } else null
+                    val baseScale = obj.optDouble("scale", 1.0).toFloat().coerceIn(0.5f, 3.6f)
+                    val wScale = obj.optDouble("wScale", baseScale.toDouble()).toFloat().coerceIn(0.5f, 3.6f)
+                    val hScale = obj.optDouble("hScale", baseScale.toDouble()).toFloat().coerceIn(0.5f, 3.6f)
                     add(
                         PlacedAppItem(
                             componentKey = key,
                             pageIndex = obj.optInt("page", 0).coerceAtLeast(0),
-                            scale = obj.optDouble("scale", 1.0).toFloat().coerceIn(0.75f, 1.6f),
+                            scale = baseScale,
+                            widthScale = wScale,
+                            heightScale = hScale,
                             shapeOverride = shape,
                             slotIndex = obj.optInt("slot", -1),
                             landscapeSlotIndex = obj.optInt("lSlot", -1)
@@ -493,6 +517,8 @@ class LauncherPreferencesRepository(private val context: Context) {
                 put("gif", nest.gifPath ?: "")
                 put("slot", nest.slotIndex)
                 put("lSlot", nest.landscapeSlotIndex)
+                put("wScale", nest.widthScale.toDouble())
+                put("hScale", nest.heightScale.toDouble())
                 val apps = JSONArray()
                 nest.appKeys.forEach { apps.put(it) }
                 put("apps", apps)
@@ -531,7 +557,9 @@ class LauncherPreferencesRepository(private val context: Context) {
                             shapeOverride = shape,
                             gifPath = gif,
                             slotIndex = obj.optInt("slot", -1),
-                            landscapeSlotIndex = obj.optInt("lSlot", -1)
+                            landscapeSlotIndex = obj.optInt("lSlot", -1),
+                            widthScale = obj.optDouble("wScale", 1.0).toFloat().coerceIn(0.5f, 3.6f),
+                            heightScale = obj.optDouble("hScale", 1.0).toFloat().coerceIn(0.5f, 3.6f)
                         )
                     )
                 }
@@ -587,9 +615,14 @@ class LauncherPreferencesRepository(private val context: Context) {
                 put("providerClass", w.providerClass)
                 put("nativeType", w.nativeType?.name ?: "")
                 put("size", w.size.name)
+                put("width", w.customWidthDp ?: -1)
                 put("height", w.customHeightDp ?: -1)
                 put("radius", w.cornerRadiusDp)
                 put("gif", w.gifPath ?: "")
+                put("slot", w.slotIndex)
+                put("lSlot", w.landscapeSlotIndex)
+                put("shape", w.shapeOverride?.name ?: "")
+                put("transparent", w.transparentBackground)
             }
             arr.put(obj)
         }
@@ -608,8 +641,19 @@ class LauncherPreferencesRepository(private val context: Context) {
                     val nativeType = if (nativeName.isNotBlank()) {
                         nativeName.toEnumOrDefault(OwlNativeWidgetType.SYSTEM_GLANCE)
                     } else null
-                    val customH = obj.optInt("height", -1).takeIf { it > 40 }
+                    val customW = obj.optInt("width", -1).takeIf { it >= 48 }
+                    val customH = obj.optInt("height", -1).takeIf { it >= 48 }
                     val gif = obj.optString("gif").takeIf { it.isNotBlank() && File(it).exists() }
+                    val shapeRaw = obj.optString("shape")
+                    val shape = if (shapeRaw.isNotBlank()) {
+                        shapeRaw.toEnumOrDefault(IconShapeStyle.ORIGINAL)
+                    } else null
+                    val defaultTransparent = (kind == PlacedWidgetKind.ANDROID_APPWIDGET)
+                    val transparent = if (obj.has("transparent")) {
+                        obj.optBoolean("transparent", defaultTransparent)
+                    } else {
+                        defaultTransparent
+                    }
                     add(
                         PlacedWidget(
                             id = obj.optString("id"),
@@ -620,11 +664,57 @@ class LauncherPreferencesRepository(private val context: Context) {
                             providerClass = obj.optString("providerClass"),
                             nativeType = nativeType,
                             size = obj.optString("size").toEnumOrDefault(WidgetSize.WIDE),
+                            customWidthDp = customW,
                             customHeightDp = customH,
-                            cornerRadiusDp = obj.optInt("radius", 22).coerceIn(8, 36),
-                            gifPath = gif
+                            cornerRadiusDp = obj.optInt("radius", 22).coerceIn(0, 48),
+                            gifPath = gif,
+                            slotIndex = obj.optInt("slot", -1),
+                            landscapeSlotIndex = obj.optInt("lSlot", -1),
+                            shapeOverride = shape,
+                            transparentBackground = transparent
                         )
                     )
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun encodeStickyTexts(texts: List<HomeStickyText>): String {
+        val arr = JSONArray()
+        texts.forEach { st ->
+            val obj = JSONObject().apply {
+                put("page", st.pageIndex)
+                put("text", st.text)
+                put("x", st.xFraction.toDouble())
+                put("y", st.yFraction.toDouble())
+                put("size", st.fontSizeSp)
+            }
+            arr.put(obj)
+        }
+        return arr.toString()
+    }
+
+    private fun decodeStickyTexts(raw: String?): List<HomeStickyText> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    val obj = arr.optJSONObject(i) ?: continue
+                    val t = obj.optString("text")
+                    if (t.isNotEmpty()) {
+                        add(
+                            HomeStickyText(
+                                pageIndex = obj.optInt("page", 0).coerceAtLeast(0),
+                                text = t,
+                                xFraction = obj.optDouble("x", 0.5).toFloat().coerceIn(0.08f, 0.92f),
+                                yFraction = obj.optDouble("y", 0.16).toFloat().coerceIn(0.06f, 0.85f),
+                                fontSizeSp = obj.optInt("size", 22).coerceIn(14, 42)
+                            )
+                        )
+                    }
                 }
             }
         } catch (_: Exception) {

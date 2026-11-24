@@ -37,6 +37,8 @@ import java.util.concurrent.ConcurrentHashMap
 class InstalledAppsManager(private val context: Context) {
 
     private val iconCache = ConcurrentHashMap<String, ImageBitmap>()
+    @Volatile
+    private var cachedTorchSupported: Boolean? = null
 
     suspend fun loadInstalledApps(): List<AppInfo> = loadInstalledAppsTwoPhase(emptySet()) {}
 
@@ -232,7 +234,9 @@ class InstalledAppsManager(private val context: Context) {
         }
         val freeText = Formatter.formatShortFileSize(context, freeBytes)
 
-        val torchSupported = findFlashCameraId() != null
+        val torchSupported = cachedTorchSupported ?: (findFlashCameraId() != null).also {
+            cachedTorchSupported = it
+        }
 
         return DeviceStatus(
             batteryPercent = percent.coerceIn(0, 100),

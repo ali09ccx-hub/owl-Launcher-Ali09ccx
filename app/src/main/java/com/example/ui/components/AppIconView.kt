@@ -79,10 +79,21 @@ private val OwlShieldShape = GenericShape { size, _ ->
     close()
 }
 
+private val OwlTriangleShape = GenericShape { size, _ ->
+    val w = size.width
+    val h = size.height
+    moveTo(w * 0.5f, h * 0.03f)
+    lineTo(w * 0.97f, h * 0.94f)
+    quadraticTo(w * 0.5f, h * 0.98f, w * 0.03f, h * 0.94f)
+    close()
+}
+
 fun IconShapeStyle.toComposeShape(): Shape = when (this) {
     IconShapeStyle.ORIGINAL -> RectangleShape
+    IconShapeStyle.SQUARE -> RoundedCornerShape(4.dp)
     IconShapeStyle.SQUIRCLE -> RoundedCornerShape(percent = 30)
     IconShapeStyle.CIRCLE -> CircleShape
+    IconShapeStyle.TRIANGLE -> OwlTriangleShape
     IconShapeStyle.ROUNDED -> RoundedCornerShape(percent = 20)
     IconShapeStyle.FEATHER -> RoundedCornerShape(
         topStartPercent = 48,
@@ -99,6 +110,8 @@ fun AppIconTile(
     app: AppInfo,
     iconShape: IconShapeStyle,
     iconSize: Dp,
+    iconWidth: Dp = iconSize,
+    iconHeight: Dp = iconSize,
     showFrameBackdrop: Boolean,
     showLabel: Boolean,
     isEditMode: Boolean,
@@ -244,14 +257,14 @@ fun AppIconTile(
             .testTag("app_icon_${app.packageName}")
             .clip(RoundedCornerShape(16.dp))
             .then(interactiveModifier)
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(iconSize + 10.dp)
+                .size(width = iconWidth + 10.dp, height = iconHeight + 10.dp)
                 .then(
                     if (isMergeHighlighted) {
                         Modifier
@@ -267,6 +280,8 @@ fun AppIconTile(
                 app = app,
                 iconShape = iconShape,
                 iconSize = iconSize,
+                iconWidth = iconWidth,
+                iconHeight = iconHeight,
                 showFrameBackdrop = showFrameBackdrop
             )
 
@@ -329,12 +344,15 @@ fun UnalteredAppIconArtwork(
     iconShape: IconShapeStyle,
     iconSize: Dp,
     showFrameBackdrop: Boolean,
+    iconWidth: Dp = iconSize,
+    iconHeight: Dp = iconSize,
     modifier: Modifier = Modifier
 ) {
     val shape = iconShape.toComposeShape()
     val useFrame = showFrameBackdrop && iconShape != IconShapeStyle.ORIGINAL
+    val isStretched = iconWidth != iconHeight
     val containerModifier = modifier
-        .size(iconSize)
+        .size(width = iconWidth, height = iconHeight)
         .then(
             if (iconShape != IconShapeStyle.ORIGINAL) {
                 Modifier.clip(shape)
@@ -366,7 +384,7 @@ fun UnalteredAppIconArtwork(
             Image(
                 bitmap = bitmap,
                 contentDescription = app.label,
-                contentScale = ContentScale.Fit,
+                contentScale = if (isStretched) ContentScale.FillBounds else ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (iconShape != IconShapeStyle.ORIGINAL) Modifier.clip(shape) else Modifier)
@@ -376,7 +394,7 @@ fun UnalteredAppIconArtwork(
                 imageVector = Icons.Filled.Apps,
                 contentDescription = app.label,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(iconSize * 0.65f)
+                modifier = Modifier.size(minOf(iconWidth, iconHeight) * 0.65f)
             )
         }
     }
@@ -395,6 +413,7 @@ fun OwlNestTile(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onLaunchAppDirectly: (AppInfo) -> Unit,
+    onDeleteInEditMode: (() -> Unit)? = null,
     dragController: HomeDragController? = null,
     dragPayload: HomeDragPayload.Nest? = null,
     pageIndex: Int = 0,
@@ -423,6 +442,12 @@ fun OwlNestTile(
         label = "nest_merge_scale"
     )
 
+    val bigShape = if (effectiveShape == IconShapeStyle.ORIGINAL) {
+        RoundedCornerShape(22.dp)
+    } else {
+        effectiveShape.toComposeShape()
+    }
+
     if (nest.folderSize != FolderSizeMode.SIZE_1X1) {
         Surface(
             modifier = modifier
@@ -442,12 +467,12 @@ fun OwlNestTile(
                     }
                 }
                 .testTag("owl_nest_big_${nest.id}")
-                .clip(RoundedCornerShape(22.dp))
+                .clip(bigShape)
                 .combinedClickable(
-                    onClick = onClick,
+                    onClick = if (isEditMode) onLongClick else onClick,
                     onLongClick = onLongClick
                 ),
-            shape = RoundedCornerShape(22.dp),
+            shape = bigShape,
             color = MaterialTheme.colorScheme.surface.copy(alpha = glassOpacity),
             border = BorderStroke(
                 width = if (isMergeHighlighted) 2.dp else 1.dp,
@@ -545,6 +570,9 @@ fun OwlNestTile(
         return
     }
 
+    val nestWidthDp = (iconSize * nest.widthScale + 4.dp).coerceIn(38.dp, 240.dp)
+    val nestHeightDp = (iconSize * nest.heightScale + 4.dp).coerceIn(38.dp, 240.dp)
+
     var tileBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
@@ -571,6 +599,7 @@ fun OwlNestTile(
                     val downTime = System.currentTimeMillis()
                     var lastLocalPos = down.position
                     var cancelledByMovement = false
+                    var consumedByBadge = false
 
                     try {
                         while (true) {
@@ -599,10 +628,11 @@ fun OwlNestTile(
                             if (change == null) break
 
                             lastLocalPos = change.position
+                            if (change.isConsumed) consumedByBadge = true
                             val dist = (change.position - down.position).getDistance()
                             if (!change.pressed) {
                                 interactionSource.tryEmit(PressInteraction.Release(press))
-                                if (dist < touchSlopPx) {
+                                if (!consumedByBadge && dist < touchSlopPx) {
                                     change.consume()
                                     if (latestEditMode) latestOnLongClick() else latestOnClick()
                                 }
@@ -649,70 +679,113 @@ fun OwlNestTile(
             .testTag("owl_nest_${nest.id}")
             .clip(RoundedCornerShape(16.dp))
             .then(nestInteractiveModifier)
-            .padding(horizontal = 4.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Box(
-            modifier = Modifier
-                .size(iconSize + 4.dp)
-                .clip(shape)
-                .background(
-                    if (isMergeHighlighted) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                    } else {
-                        MaterialTheme.colorScheme.surface.copy(alpha = glassOpacity)
-                    }
-                )
-                .border(
-                    width = if (isMergeHighlighted) 2.dp else 1.dp,
-                    color = if (isMergeHighlighted) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
-                    },
-                    shape = shape
-                ),
+            modifier = Modifier.size(width = nestWidthDp + 8.dp, height = nestHeightDp + 8.dp),
             contentAlignment = Alignment.Center
         ) {
-            val gif = nest.gifPath
-            if (gif != null) {
-                AnimatedGifMedia(
-                    filePath = gif,
-                    contentDescription = nest.name,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else if (appsInNest.isEmpty()) {
-                Icon(
-                    imageVector = Icons.Filled.FolderSpecial,
-                    contentDescription = nest.name,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(iconSize * 0.5f)
-                )
-            } else {
-                val miniSize = (iconSize - 18.dp) / 2f
-                Column(
-                    modifier = Modifier.padding(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                        appsInNest.getOrNull(0)?.let { app ->
-                            UnalteredAppIconArtwork(app, IconShapeStyle.ORIGINAL, miniSize, false)
+            Box(
+                modifier = Modifier
+                    .size(width = nestWidthDp, height = nestHeightDp)
+                    .clip(shape)
+                    .background(
+                        if (isMergeHighlighted) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = glassOpacity)
                         }
-                        appsInNest.getOrNull(1)?.let { app ->
-                            UnalteredAppIconArtwork(app, IconShapeStyle.ORIGINAL, miniSize, false)
-                        }
-                    }
-                    if (appsInNest.size > 2) {
+                    )
+                    .border(
+                        width = if (isMergeHighlighted) 2.dp else 1.dp,
+                        color = if (isMergeHighlighted) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
+                        },
+                        shape = shape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                val gif = nest.gifPath
+                if (gif != null) {
+                    AnimatedGifMedia(
+                        filePath = gif,
+                        contentDescription = nest.name,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (appsInNest.isEmpty()) {
+                    Icon(
+                        imageVector = Icons.Filled.FolderSpecial,
+                        contentDescription = nest.name,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(minOf(nestWidthDp, nestHeightDp) * 0.5f)
+                    )
+                } else {
+                    val miniSize = ((minOf(nestWidthDp, nestHeightDp) - 18.dp) / 2f).coerceAtLeast(12.dp)
+                    Column(
+                        modifier = Modifier.padding(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                            appsInNest.getOrNull(2)?.let { app ->
+                            appsInNest.getOrNull(0)?.let { app ->
                                 UnalteredAppIconArtwork(app, IconShapeStyle.ORIGINAL, miniSize, false)
                             }
-                            appsInNest.getOrNull(3)?.let { app ->
+                            appsInNest.getOrNull(1)?.let { app ->
                                 UnalteredAppIconArtwork(app, IconShapeStyle.ORIGINAL, miniSize, false)
                             }
                         }
+                        if (appsInNest.size > 2) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                appsInNest.getOrNull(2)?.let { app ->
+                                    UnalteredAppIconArtwork(app, IconShapeStyle.ORIGINAL, miniSize, false)
+                                }
+                                appsInNest.getOrNull(3)?.let { app ->
+                                    UnalteredAppIconArtwork(app, IconShapeStyle.ORIGINAL, miniSize, false)
+                                }
+                            }
+                        }
                     }
+                }
+            }
+
+            if (isEditMode && onDeleteInEditMode != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error)
+                        .clickable(onClick = onDeleteInEditMode),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+            }
+            if (isEditMode) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable(onClick = onLongClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Tune,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(13.dp)
+                    )
                 }
             }
         }

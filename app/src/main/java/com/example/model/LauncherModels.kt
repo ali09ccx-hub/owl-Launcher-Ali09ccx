@@ -26,8 +26,10 @@ data class AppInfo(
 
 enum class IconShapeStyle {
     ORIGINAL,
+    SQUARE,
     SQUIRCLE,
     CIRCLE,
+    TRIANGLE,
     ROUNDED,
     FEATHER,
     SHIELD
@@ -81,10 +83,15 @@ data class PlacedAppItem(
     val componentKey: String,
     val pageIndex: Int = 0,
     val scale: Float = 1.0f,
+    val widthScale: Float = 1.0f,
+    val heightScale: Float = 1.0f,
     val shapeOverride: IconShapeStyle? = null,
     val slotIndex: Int = -1,
     val landscapeSlotIndex: Int = -1
-)
+) {
+    val effectiveWidthScale: Float get() = if (widthScale != 1.0f) widthScale else scale
+    val effectiveHeightScale: Float get() = if (heightScale != 1.0f) heightScale else scale
+}
 
 @Immutable
 data class OwlNest(
@@ -96,7 +103,9 @@ data class OwlNest(
     val shapeOverride: IconShapeStyle? = null,
     val gifPath: String? = null,
     val slotIndex: Int = -1,
-    val landscapeSlotIndex: Int = -1
+    val landscapeSlotIndex: Int = -1,
+    val widthScale: Float = 1.0f,
+    val heightScale: Float = 1.0f
 )
 
 @Immutable
@@ -134,9 +143,23 @@ data class PlacedWidget(
     val providerClass: String = "",
     val nativeType: OwlNativeWidgetType? = null,
     val size: WidgetSize = WidgetSize.WIDE,
+    val customWidthDp: Int? = null,
     val customHeightDp: Int? = null,
     val cornerRadiusDp: Int = 22,
-    val gifPath: String? = null
+    val gifPath: String? = null,
+    val slotIndex: Int = -1,
+    val landscapeSlotIndex: Int = -1,
+    val shapeOverride: IconShapeStyle? = null,
+    val transparentBackground: Boolean = (kind == PlacedWidgetKind.ANDROID_APPWIDGET)
+)
+
+@Immutable
+data class HomeStickyText(
+    val pageIndex: Int = 0,
+    val text: String = "",
+    val xFraction: Float = 0.5f,
+    val yFraction: Float = 0.16f,
+    val fontSizeSp: Int = 22
 )
 
 enum class GestureId {
@@ -162,6 +185,7 @@ enum class GestureId {
     FOUR_F_SWIPE_UP,
     FOUR_F_SWIPE_DOWN,
     FOUR_F_TAP,
+    EIGHT_F_TAP,
     EDGE_LEFT_IN,
     EDGE_RIGHT_IN
 }
@@ -183,6 +207,7 @@ enum class GestureActionType {
     TOGGLE_SAFETY,
     TOGGLE_TORCH,
     OPEN_NOTE,
+    OPEN_HOME_TYPER,
     EXPAND_NOTIFICATIONS,
     OPEN_DEVICE_SETTINGS,
     LAUNCH_APP
@@ -216,7 +241,8 @@ fun defaultGestureBindings(): Map<GestureId, GestureBinding> = mapOf(
     GestureId.THREE_F_TAP to GestureBinding(GestureActionType.TOGGLE_SAFETY),
     GestureId.FOUR_F_SWIPE_UP to GestureBinding(GestureActionType.FIRST_PAGE),
     GestureId.FOUR_F_SWIPE_DOWN to GestureBinding(GestureActionType.OPEN_DEVICE_SETTINGS),
-    GestureId.FOUR_F_TAP to GestureBinding(GestureActionType.OPEN_WIDGETS),
+    GestureId.FOUR_F_TAP to GestureBinding(GestureActionType.OPEN_HOME_TYPER),
+    GestureId.EIGHT_F_TAP to GestureBinding(GestureActionType.OPEN_HOME_TYPER),
     GestureId.EDGE_LEFT_IN to GestureBinding(GestureActionType.PREV_PAGE),
     GestureId.EDGE_RIGHT_IN to GestureBinding(GestureActionType.NEXT_PAGE)
 )
@@ -255,6 +281,7 @@ data class LauncherPreferencesState(
     val focusEssentialAppKeys: Set<String> = emptySet(),
     val owlNests: List<OwlNest> = emptyList(),
     val placedWidgets: List<PlacedWidget> = emptyList(),
+    val stickyTexts: List<HomeStickyText> = emptyList(),
     val recentApps: List<RecentAppEntry> = emptyList(),
     val gestureBindings: Map<GestureId, GestureBinding> = defaultGestureBindings()
 )

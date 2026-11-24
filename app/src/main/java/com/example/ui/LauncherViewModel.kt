@@ -20,6 +20,7 @@ import com.example.model.FolderSizeMode
 import com.example.model.GestureActionType
 import com.example.model.GestureBinding
 import com.example.model.GestureId
+import com.example.model.HomeStickyText
 import com.example.model.IconShapeStyle
 import com.example.model.LauncherPreferencesState
 import com.example.model.LayerTransitionStyle
@@ -34,6 +35,7 @@ import com.example.model.StormMode
 import com.example.model.WallpaperConfig
 import com.example.model.WidgetSize
 import com.example.widgets.OwlAppWidgetHost
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -80,6 +82,8 @@ data class LauncherUiState(
     val selectedNestToOpen: OwlNest? = null,
     val appToAddToNest: AppInfo? = null,
     val itemCustomizationTarget: ItemCustomizationTarget? = null,
+    val freeFrameEditorTarget: ItemCustomizationTarget? = null,
+    val isHomeTyperOpen: Boolean = false,
     val isCreateNestDialogOpen: Boolean = false,
     val isNoteEditorOpen: Boolean = false,
     val focusSecondsRemaining: Int = 25 * 60,
@@ -189,6 +193,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val selectedNestToOpen: OwlNest? = null,
         val appToAddToNest: AppInfo? = null,
         val itemCustomizationTarget: ItemCustomizationTarget? = null,
+        val freeFrameEditorTarget: ItemCustomizationTarget? = null,
+        val isHomeTyperOpen: Boolean = false,
         val isCreateNestDialogOpen: Boolean = false,
         val isNoteEditorOpen: Boolean = false,
         val focusSecondsRemaining: Int = 25 * 60,
@@ -240,6 +246,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     selectedNestToOpen = eph.selectedNestToOpen,
                     appToAddToNest = eph.appToAddToNest,
                     itemCustomizationTarget = eph.itemCustomizationTarget,
+                    freeFrameEditorTarget = eph.freeFrameEditorTarget,
+                    isHomeTyperOpen = eph.isHomeTyperOpen,
                     isCreateNestDialogOpen = eph.isCreateNestDialogOpen,
                     isNoteEditorOpen = eph.isNoteEditorOpen,
                     focusSecondsRemaining = eph.focusSecondsRemaining,
@@ -317,8 +325,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshSystemState() {
-        _isDefaultLauncher.value = appsManager.isDefaultLauncher()
-        _deviceStatus.value = appsManager.readDeviceStatus(torchEnabled)
+        viewModelScope.launch(Dispatchers.IO) {
+            _isDefaultLauncher.value = appsManager.isDefaultLauncher()
+            _deviceStatus.value = appsManager.readDeviceStatus(torchEnabled)
+        }
     }
 
     fun setCurrentPage(pageIndex: Int) {
@@ -510,6 +520,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 selectedNestToOpen = null,
                 appToAddToNest = null,
                 itemCustomizationTarget = null,
+                freeFrameEditorTarget = null,
+                isHomeTyperOpen = false,
                 isCreateNestDialogOpen = false,
                 isNoteEditorOpen = false,
                 vaultUnlocked = false
@@ -520,6 +532,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun handleBackPress(): Boolean {
         val eph = _ephemeral.value
         return when {
+            eph.freeFrameEditorTarget != null -> {
+                _ephemeral.update { it.copy(freeFrameEditorTarget = null) }
+                true
+            }
+            eph.isHomeTyperOpen -> {
+                _ephemeral.update { it.copy(isHomeTyperOpen = false) }
+                true
+            }
             eph.itemCustomizationTarget != null -> {
                 _ephemeral.update { it.copy(itemCustomizationTarget = null) }
                 true
@@ -574,6 +594,66 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun openItemCustomization(target: ItemCustomizationTarget?) {
         _ephemeral.update { it.copy(itemCustomizationTarget = target, selectedAppForMenu = null) }
+    }
+
+    fun openBetterFrameEditor(target: ItemCustomizationTarget?) {
+        _ephemeral.update {
+            it.copy(
+                freeFrameEditorTarget = target,
+                itemCustomizationTarget = if (target != null) null else it.itemCustomizationTarget,
+                isHomeControlBarOpen = false
+            )
+        }
+    }
+
+    fun openHomeTyper(open: Boolean) {
+        _ephemeral.update {
+            it.copy(
+                isHomeTyperOpen = open,
+                isDrawerOpen = if (open) false else it.isDrawerOpen,
+                isRecentsOpen = if (open) false else it.isRecentsOpen,
+                isHomeControlBarOpen = if (open) false else it.isHomeControlBarOpen
+            )
+        }
+    }
+
+    fun updateStickyText(pageIndex: Int, text: String, fontSizeSp: Int? = null) {
+        viewModelScope.launch {
+            val current = _uiState.value.prefs.stickyTexts
+            val existing = current.firstOrNull { it.pageIndex == pageIndex }
+            val updatedItem = HomeStickyText(
+                pageIndex = pageIndex,
+                text = text,
+                xFraction = existing?.xFraction ?: 0.5f,
+                yFraction = existing?.yFraction ?: 0.16f,
+                fontSizeSp = (fontSizeSp ?: existing?.fontSizeSp ?: 22).coerceIn(14, 42)
+            )
+            val next = if (text.isBlank() && fontSizeSp == null) {
+                current.filterNot { it.pageIndex == pageIndex }
+            } else {
+                current.filterNot { it.pageIndex == pageIndex } + updatedItem
+            }
+            repository.setStickyTexts(next)
+        }
+    }
+
+    fun moveStickyText(pageIndex: Int, xFraction: Float, yFraction: Float) {
+        viewModelScope.launch {
+            val current = _uiState.value.prefs.stickyTexts
+            val existing = current.firstOrNull { it.pageIndex == pageIndex } ?: return@launch
+            val updated = existing.copy(
+                xFraction = xFraction.coerceIn(0.08f, 0.92f),
+                yFraction = yFraction.coerceIn(0.06f, 0.85f)
+            )
+            repository.setStickyTexts(current.filterNot { it.pageIndex == pageIndex } + updated)
+        }
+    }
+
+    fun clearStickyText(pageIndex: Int) {
+        viewModelScope.launch {
+            val next = _uiState.value.prefs.stickyTexts.filterNot { it.pageIndex == pageIndex }
+            repository.setStickyTexts(next)
+        }
     }
 
     fun openNest(nest: OwlNest?) {
@@ -696,6 +776,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             GestureActionType.TOGGLE_SAFETY -> toggleSafetyShield()
             GestureActionType.TOGGLE_TORCH -> toggleFlashlight()
             GestureActionType.OPEN_NOTE -> openNoteEditor(true)
+            GestureActionType.OPEN_HOME_TYPER -> openHomeTyper(true)
             GestureActionType.EXPAND_NOTIFICATIONS -> {
                 appsManager.expandNotificationsShade()
             }
@@ -1485,6 +1566,42 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 onPage.add(targetIdx, item)
                 val otherPages = all.filterNot { it.pageIndex == page }
                 repository.setPlacedWidgets(otherPages + onPage)
+            }
+        }
+    }
+
+    fun reorderOrMoveWidget(
+        widgetId: String,
+        targetPage: Int,
+        targetSlotIndex: Int? = null,
+        isLandscape: Boolean = false
+    ) {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val maxPage = (state.prefs.pageCount - 1).coerceAtLeast(0)
+            val safePage = targetPage.coerceIn(0, maxPage)
+            val updatedList = state.prefs.placedWidgets.map { widget ->
+                if (widget.id == widgetId) {
+                    val slot = targetSlotIndex?.coerceAtLeast(0) ?: -1
+                    if (isLandscape) {
+                        widget.copy(
+                            pageIndex = safePage,
+                            landscapeSlotIndex = slot,
+                            slotIndex = if (widget.slotIndex < 0) slot else widget.slotIndex
+                        )
+                    } else {
+                        widget.copy(
+                            pageIndex = safePage,
+                            slotIndex = slot
+                        )
+                    }
+                } else {
+                    widget
+                }
+            }
+            repository.setPlacedWidgets(updatedList)
+            if (state.currentPage != safePage) {
+                jumpToPage(safePage)
             }
         }
     }

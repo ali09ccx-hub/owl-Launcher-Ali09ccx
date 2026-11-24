@@ -107,12 +107,25 @@
 
     <string name="item_editor_title">Customize Item</string>
     <string name="item_scale_label">Scale: %1$.2fx</string>
+    <string name="item_width_scale_label">Width: %1$.2fx</string>
+    <string name="item_height_scale_label">Height: %1$.2fx</string>
     <string name="item_shape_override">Item Shape</string>
     <string name="shape_inherit">Use Global</string>
     <string name="move_to_prev_page">Move to Prev Layer</string>
     <string name="move_to_next_page">Move to Next Layer</string>
     <string name="attach_gif_btn">Set Animated GIF / Photo</string>
     <string name="clear_gif_btn">Remove GIF</string>
+
+    <string name="better_editor_btn">Better Editor (White Frame Handles)</string>
+    <string name="better_editor_title">Free Size &amp; Shape Editor</string>
+    <string name="better_editor_hint">Drag the white corner or edge lines to resize freely</string>
+    <string name="preset_small_square">Small Square</string>
+    <string name="preset_medium_square">Square</string>
+    <string name="preset_wide_rect">Wide Rect</string>
+    <string name="preset_tall_rect">Tall Rect</string>
+    <string name="preset_reset">Reset</string>
+    <string name="widget_transparent_bg_toggle">Transparent (No Dark Edges)</string>
+    <string name="widget_width_label">Custom Width: %1$ddp</string>
 
     <!-- Owl Nests (Folders) -->
     <string name="create_nest">New Folder</string>
@@ -225,8 +238,10 @@
 
     <string name="icon_shape_label">Icon Frame Shape (Preserves Original Art)</string>
     <string name="shape_original">Original</string>
+    <string name="shape_square">Square</string>
     <string name="shape_squircle">Squircle</string>
     <string name="shape_circle">Circle</string>
+    <string name="shape_triangle">Triangle</string>
     <string name="shape_rounded">Rounded</string>
     <string name="shape_feather">Feather</string>
     <string name="shape_shield">Crest</string>
@@ -280,6 +295,7 @@
     <string name="g_4f_swipe_up">4-Finger Swipe Up</string>
     <string name="g_4f_swipe_down">4-Finger Swipe Down</string>
     <string name="g_4f_tap">4-Finger Tap</string>
+    <string name="g_8f_tap">8-Finger Tap</string>
     <string name="g_edge_left_in">Left Edge Swipe In</string>
     <string name="g_edge_right_in">Right Edge Swipe In</string>
 
@@ -300,8 +316,14 @@
     <string name="ga_toggle_safety">Toggle Safety Shield Mode</string>
     <string name="ga_toggle_torch">Toggle Flashlight</string>
     <string name="ga_open_note">Open Quick Note</string>
+    <string name="ga_open_home_typer">Type Directly on Home Screen</string>
     <string name="ga_expand_notifications">Expand Notifications Shade</string>
     <string name="ga_open_device_settings">Open Device Settings</string>
     <string name="ga_launch_app">Launch Specific App…</string>
     <string name="ga_launch_app_named">Open: %1$s</string>
+
+    <!-- Live Home Keyboard Typer -->
+    <string name="home_typer_hint">Type anything — it stays live on your Home screen…</string>
+    <string name="home_typer_clear">Clear</string>
+    <string name="home_typer_keep">Pin on Home</string>
 </resources>
